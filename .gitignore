@@ -1,0 +1,26 @@
+# Python standard ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.toast
+.build
+.pytest_cache/
+
+# Environment variables (Secrets)
+.env
+
+# Project specific ignores
+generated_charts/
+cache/
+.gradio/
+
+# OS specific files
+.DS_Store
+Thumbs.db

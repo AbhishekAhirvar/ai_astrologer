@@ -1,0 +1,11 @@
+gradio
+kerykeion
+geopy
+google-generativeai
+python-dotenv
+matplotlib
+pillow
+numpy
+geopy
+google-generativeai
+gradio
