@@ -1,11 +1,3 @@
-# backend/chart_renderer.py
-"""
-North Indian Chart - PROPER BOUNDARIES VERSION
-- All numbers INSIDE the box
-- Text stays within triangles
-- Darker house numbers
-"""
-
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Rectangle
@@ -27,8 +19,15 @@ PLANET_NAMES = {
     'ascendant': 'Asc'
 }
 
+# Rashi names (optional for display)
+RASHI_NAMES = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
+]
+
+
 class NorthIndianChart:
-    """North Indian Chart - Boundaries Fixed"""
+    """North Indian Chart - Industry Standard"""
     
     def __init__(self, chart_data, chart_type='D1', name=''):
         self.chart_data = chart_data
@@ -37,6 +36,7 @@ class NorthIndianChart:
         self.fig = None
         self.ax = None
         
+        # Get ascendant sign number (0-11)
         if chart_type == 'D1':
             self.ascendant_sign = chart_data.get('ascendant', {}).get('sign_num', 0)
         else:
@@ -48,7 +48,7 @@ class NorthIndianChart:
         self._calculate_ak_dk()
     
     def _calculate_ak_dk(self):
-        """Calculate AK/DK"""
+        """Calculate AK/DK based on degrees within sign"""
         if self.chart_type == 'D1':
             data = self.chart_data
         else:
@@ -56,14 +56,16 @@ class NorthIndianChart:
         
         planet_degrees = []
         for planet_key, planet_data in data.items():
-            if planet_key in ['rahu', 'ketu', 'ascendant', '_metadata', 
-                             'd9_chart', 'd10_chart', 'd12_chart']:
+            if planet_key in ['rahu', 'ketu', 'ascendant', '_metadata',
+                            'd9_chart', 'd10_chart', 'd12_chart']:
                 continue
             if not isinstance(planet_data, dict):
                 continue
+            
             degree = planet_data.get('degree', 0)
             planet_degrees.append((planet_key, degree))
         
+        # Sort by degree within sign (descending)
         planet_degrees.sort(key=lambda x: x[1], reverse=True)
         
         if len(planet_degrees) >= 1:
@@ -72,8 +74,8 @@ class NorthIndianChart:
             self.dk_planet = planet_degrees[6][0]
     
     def create_figure(self):
-        """Create figure"""
-        self.fig, self.ax = plt.subplots(figsize=(10, 10), dpi=150)
+        """Create figure with better resolution"""
+        self.fig, self.ax = plt.subplots(figsize=(11, 11), dpi=200)
         self.ax.set_xlim(0, 10)
         self.ax.set_ylim(0, 10)
         self.ax.set_aspect('equal')
@@ -82,10 +84,10 @@ class NorthIndianChart:
         self.ax.set_facecolor('white')
     
     def draw_structure(self):
-        """Draw structure"""
-        # Outer square
-        outer = Rectangle((1, 1), 8, 8, fill=False, 
-                         edgecolor='black', linewidth=2.5)
+        """Draw chart structure"""
+        # Outer square - slightly thicker
+        outer = Rectangle((1, 1), 8, 8, fill=False,
+                         edgecolor='black', linewidth=3.0)
         self.ax.add_patch(outer)
         
         # Diamond midpoints
@@ -97,118 +99,125 @@ class NorthIndianChart:
         # Inner diamond
         diamond_x = [left_mid[0], top_mid[0], right_mid[0], bottom_mid[0], left_mid[0]]
         diamond_y = [left_mid[1], top_mid[1], right_mid[1], bottom_mid[1], left_mid[1]]
-        self.ax.plot(diamond_x, diamond_y, 'k-', linewidth=2.5)
+        self.ax.plot(diamond_x, diamond_y, 'k-', linewidth=3.0)
         
         # Diagonals
-        self.ax.plot([1, 9], [1, 9], 'k-', linewidth=2.5)
-        self.ax.plot([1, 9], [9, 1], 'k-', linewidth=2.5)
+        self.ax.plot([1, 9], [1, 9], 'k-', linewidth=3.0)
+        self.ax.plot([1, 9], [9, 1], 'k-', linewidth=3.0)
     
     def get_house_data(self):
         """
-        Properly calculated house positions
-        ALL corners are INSIDE the box (with margin)
+        House positions optimized for rashi number display
+        Industry standard positioning
         """
-        
         houses = {
-            # House 1: Top triangle
+            # House 1: Top triangle (Ascendant position)
             1: {
-                'text_center': (5, 7.2),
-                'corner': (5, 8.2),  # INSIDE top area
-                'font_size': 8
+                'text_center': (5, 7.0),
+                'rashi_pos': (5, 8.5),      # Prominent top position
+                'font_size': 9
             },
-            
             # House 2: Top-left small triangle
             2: {
                 'text_center': (2.8, 7.8),
-                'corner': (2.0, 8.2),  # INSIDE
-                'font_size': 7
+                'rashi_pos': (1.7, 8.5),    # Top-left corner
+                'font_size': 8
             },
-            
             # House 3: Left-upper
             3: {
                 'text_center': (1.8, 6.5),
-                'corner': (1.5, 7.2),  # INSIDE left edge
-                'font_size': 7
+                'rashi_pos': (1.3, 7.5),    # Left upper
+                'font_size': 8
             },
-            
             # House 4: Left big triangle
             4: {
                 'text_center': (2.2, 5.0),
-                'corner': (1.5, 5.0),  # INSIDE left edge
-                'font_size': 8
+                'rashi_pos': (1.3, 5.0),    # Left center
+                'font_size': 9
             },
-            
             # House 5: Left-lower
             5: {
                 'text_center': (1.8, 3.5),
-                'corner': (1.5, 2.8),  # INSIDE left edge
-                'font_size': 7
+                'rashi_pos': (1.3, 2.5),    # Left lower
+                'font_size': 8
             },
-            
             # House 6: Bottom-left small
             6: {
                 'text_center': (2.8, 2.2),
-                'corner': (2.0, 1.8),  # INSIDE
-                'font_size': 7
-            },
-            
-            # House 7: Bottom triangle
-            7: {
-                'text_center': (5, 2.8),
-                'corner': (5, 1.8),  # INSIDE bottom
+                'rashi_pos': (1.7, 1.5),    # Bottom-left corner
                 'font_size': 8
             },
-            
+            # House 7: Bottom triangle
+            7: {
+                'text_center': (5, 3.0),
+                'rashi_pos': (5, 1.5),      # Bottom center
+                'font_size': 9
+            },
             # House 8: Bottom-right small
             8: {
                 'text_center': (7.2, 2.2),
-                'corner': (8.0, 1.8),  # INSIDE
-                'font_size': 7
+                'rashi_pos': (8.3, 1.5),    # Bottom-right corner
+                'font_size': 8
             },
-            
             # House 9: Right-lower
             9: {
                 'text_center': (8.2, 3.5),
-                'corner': (8.5, 2.8),  # INSIDE right edge
-                'font_size': 7
+                'rashi_pos': (8.7, 2.5),    # Right lower
+                'font_size': 8
             },
-            
             # House 10: Right big triangle
             10: {
                 'text_center': (7.8, 5.0),
-                'corner': (8.5, 5.0),  # INSIDE right edge
-                'font_size': 8
+                'rashi_pos': (8.7, 5.0),    # Right center
+                'font_size': 9
             },
-            
             # House 11: Right-upper
             11: {
                 'text_center': (8.2, 6.5),
-                'corner': (8.5, 7.2),  # INSIDE right edge
-                'font_size': 7
+                'rashi_pos': (8.7, 7.5),    # Right upper
+                'font_size': 8
             },
-            
             # House 12: Top-right small
             12: {
                 'text_center': (7.2, 7.8),
-                'corner': (8.0, 8.2),  # INSIDE
-                'font_size': 7
+                'rashi_pos': (8.3, 8.5),    # Top-right corner
+                'font_size': 8
             },
         }
         
         return houses
     
     def place_house_numbers(self):
-        """Place house numbers - INSIDE corners, darker color"""
+        """
+        Place RASHI numbers (1-12) in corners
+        Industry standard: Clear, bold, easily readable
+        """
         houses = self.get_house_data()
         
         for house_num in range(1, 13):
-            corner_pos = houses[house_num]['corner']
+            house_data = houses[house_num]
+            rashi_pos = house_data['rashi_pos']
             
-            # Darker gray, readable
-            self.ax.text(corner_pos[0], corner_pos[1], str(house_num),
-                        ha='center', va='center',
-                        fontsize=8, color='#666666',  # Darker gray
-                        weight='normal')
+            # Calculate which RASHI is in this house
+            # House 1 contains ascendant_sign, House 2 contains next sign, etc.
+            rashi_sign_num = (self.ascendant_sign + house_num - 1) % 12
+            rashi_number = rashi_sign_num + 1  # Convert to 1-12
+            
+            # Display rashi number prominently
+            self.ax.text(
+                rashi_pos[0], rashi_pos[1], 
+                str(rashi_number),
+                ha='center', va='center',
+                fontsize=11,           # Larger size
+                color='#2E4057',       # Dark blue-grey (professional)
+                weight='bold',         # Bold for visibility
+                family='sans-serif',
+                bbox=dict(boxstyle='circle,pad=0.2', 
+                         facecolor='#FFFFFF',    # White background
+                         edgecolor='#2E4057', 
+                         linewidth=1.2,
+                         alpha=0.8)
+            )
     
     def get_planets_by_house(self):
         """Group planets by house"""
@@ -227,6 +236,8 @@ class NorthIndianChart:
             
             sign_num = planet_data.get('sign_num', 0)
             degree = planet_data.get('degree', 0)
+            
+            # Calculate house number from sign
             house_num = ((sign_num - self.ascendant_sign) % 12) + 1
             
             planet_name = PLANET_NAMES.get(planet_key, planet_key[:3])
@@ -246,7 +257,7 @@ class NorthIndianChart:
         return planets_in_houses
     
     def place_planets(self):
-        """Place planets - stay within bounds"""
+        """Place planets with better formatting"""
         houses = self.get_house_data()
         planets_by_house = self.get_planets_by_house()
         
@@ -258,13 +269,13 @@ class NorthIndianChart:
             center_pos = house_data['text_center']
             font_size = house_data['font_size']
             
-            # Adjust for crowding
+            # Adjust spacing based on number of planets
             num_planets = len(planets)
             if num_planets > 3:
-                font_size = font_size - 1
-                line_height = 0.24
+                font_size = max(font_size - 1, 7)
+                line_height = 0.26
             else:
-                line_height = 0.28
+                line_height = 0.32
             
             # Vertical distribution
             if num_planets == 1:
@@ -284,17 +295,20 @@ class NorthIndianChart:
                 text = f"{prefix}{name} {degree:.0f}°"
                 
                 # Truncate if too long
-                if len(text) > 14:
-                    text = text[:13] + '°'
+                if len(text) > 15:
+                    text = text[:14] + '°'
                 
-                self.ax.text(center_pos[0], y_pos, text,
-                           ha='center', va='center',
-                           fontsize=font_size, color='black',
-                           weight='normal',
-                           family='sans-serif')
+                self.ax.text(
+                    center_pos[0], y_pos, text,
+                    ha='center', va='center',
+                    fontsize=font_size,
+                    color='#1a1a1a',      # Dark text
+                    weight='medium',
+                    family='sans-serif'
+                )
     
     def add_title(self):
-        """Add title"""
+        """Add title with chart type"""
         titles = {
             'D1': 'Rasi (Birth) Chart',
             'D9': 'Navamsa Chart (D9)',
@@ -306,60 +320,73 @@ class NorthIndianChart:
         if self.name:
             title = f"{title} - {self.name}"
         
-        self.ax.text(5, 9.6, title,
-                    ha='center', va='bottom',
-                    fontsize=12, weight='bold',
-                    family='sans-serif')
+        # Add ascendant info
+        asc_rashi = RASHI_NAMES[self.ascendant_sign]
+        subtitle = f"Ascendant: {asc_rashi}"
+        
+        self.ax.text(
+            5, 9.7, title,
+            ha='center', va='bottom',
+            fontsize=13, weight='bold',
+            color='#1a1a1a',
+            family='sans-serif'
+        )
+        
+        self.ax.text(
+            5, 0.3, subtitle,
+            ha='center', va='top',
+            fontsize=9, weight='normal',
+            color='#555555',
+            family='sans-serif'
+        )
     
     def render(self, output_path):
-        """Render chart"""
+        """Render chart to file"""
         self.create_figure()
         self.draw_structure()
-        self.place_house_numbers()
+        self.place_house_numbers()  # This now places RASHI numbers
         self.place_planets()
         self.add_title()
         
-        self.fig.savefig(output_path, 
-                        bbox_inches='tight',
-                        facecolor='white',
-                        edgecolor='none',
-                        dpi=150,
-                        pad_inches=0.3)
+        self.fig.savefig(
+            output_path,
+            bbox_inches='tight',
+            facecolor='white',
+            edgecolor='none',
+            dpi=200,
+            pad_inches=0.4
+        )
         plt.close(self.fig)
-        
         return output_path
 
 
 class NakshatraTable:
-    """Nakshatra table"""
+    """Nakshatra information table"""
     
     def __init__(self, nakshatra_info):
         self.nakshatra_info = nakshatra_info
     
     def render(self, output_path):
-        """Render nakshatra table"""
+        """Render nakshatra table as image"""
         width, height = 900, 1200
         img = Image.new('RGB', (width, height), 'white')
         draw = ImageDraw.Draw(img)
         
         try:
-            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
-            text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+            text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
         except:
             title_font = ImageFont.load_default()
             text_font = ImageFont.load_default()
         
-        y = 40
-        
+        y = 50
         title = f"Moon Nakshatra: {self.nakshatra_info.get('nakshatra', 'N/A')}"
-        draw.text((40, y), title, fill='black', font=title_font)
-        y += 60
+        draw.text((40, y), title, fill='#1a1a1a', font=title_font)
+        y += 70
         
         symbol_raw = self.nakshatra_info.get('symbol', 'N/A')
-        # Simple emoji strip: keep only characters with code points < 65536 (Non-emoji for most part)
-        # or just keep ASCII + common punctuation to be safe for basic fonts
         symbol_clean = "".join(c for c in symbol_raw if ord(c) < 128 or c.isalnum() or c.isspace()).strip()
-
+        
         details = [
             f"Number: {self.nakshatra_info.get('number', 'N/A')}/27",
             f"Lord: {self.nakshatra_info.get('lord', 'N/A')}",
@@ -370,15 +397,15 @@ class NakshatraTable:
         ]
         
         for detail in details:
-            draw.text((60, y), detail, fill='black', font=text_font)
-            y += 35
+            draw.text((60, y), detail, fill='#1a1a1a', font=text_font)
+            y += 40
         
         img.save(output_path)
         return output_path
 
 
 def generate_all_charts(chart_data, person_name='', output_dir='./generated_charts'):
-    """Generate all charts"""
+    """Generate all divisional charts"""
     os.makedirs(output_dir, exist_ok=True)
     
     results = {}
@@ -390,11 +417,12 @@ def generate_all_charts(chart_data, person_name='', output_dir='./generated_char
             output_path = f"{output_dir}/{person_name}_{chart_type}_{timestamp}.png"
             renderer.render(output_path)
             results[chart_type] = output_path
-            print(f"✓ {chart_type} chart saved")
+            print(f"✓ {chart_type} chart generated: {output_path}")
         except Exception as e:
             print(f"✗ Error generating {chart_type}: {e}")
             results[chart_type] = None
     
+    # Generate nakshatra table
     try:
         moon_naks = chart_data.get('moon', {}).get('nakshatra', {})
         if moon_naks:
@@ -402,9 +430,9 @@ def generate_all_charts(chart_data, person_name='', output_dir='./generated_char
             nak_path = f"{output_dir}/{person_name}_Nakshatra_{timestamp}.png"
             nak_renderer.render(nak_path)
             results['nakshatra'] = nak_path
-            print(f"✓ Nakshatra table saved")
+            print(f"✓ Nakshatra table generated: {nak_path}")
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f"✗ Error generating nakshatra table: {e}")
         results['nakshatra'] = None
     
     return results

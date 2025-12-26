@@ -5,13 +5,14 @@ Vedic Astrology AI - Tabs Layout + Detailed Nakshatra
 
 import gradio as gr
 from backend.location import get_location_data
-from backend.astrology import generate_chart_with_nakshatras
+from backend.astrology import generate_vedic_chart
 from backend.ai import get_astrology_prediction
 from backend.chart_renderer import generate_all_charts
 import time
 from collections import defaultdict
 from PIL import Image, ImageDraw, ImageFont
 import os
+from datetime import datetime
 
 user_requests = defaultdict(list)
 MAX_REQUESTS_PER_MINUTE = 10
@@ -94,13 +95,13 @@ def create_planetary_table_image(chart, output_path):
 def create_detailed_nakshatra_table(chart, output_path):
     """Create detailed nakshatra analysis table like reference image"""
     
-    width = 1100
-    height = 750
-    img = Image.new('RGB', (width, height), '#f5f5f5')
+    width = 1200
+    height = 800
+    img = Image.new('RGB', (width, height), '#1e1e1e') # Dark theme
     draw = ImageDraw.Draw(img)
     
     try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
+        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
         header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
         text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
         small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
@@ -110,109 +111,79 @@ def create_detailed_nakshatra_table(chart, output_path):
         text_font = ImageFont.load_default()
         small_font = ImageFont.load_default()
     
-    y = 25
+    y = 0
     
-    # Title
-    draw.rectangle([0, 0, width, 70], fill='#888888')
-    draw.text((width//2, 35), "NAKSHATRA-BASED ANALYSIS", fill='white', font=title_font, anchor="mm")
+    # Title Line
+    draw.rectangle([0, 0, width, 50], fill='#2d2d2d')
+    draw.text((20, 25), "Nakshatra-based Analysis", fill='#ffffff', font=title_font, anchor="lm")
     
-    y = 85
+    y = 60
     
     # Table header
-    headers = ['Planet', 'House', 'House(s)\nruled', 'Nakshatra', 'Nature', 'Caste']
-    x_positions = [30, 220, 340, 480, 700, 880]
-    col_widths = [190, 120, 140, 220, 180, 180]
+    headers = ['D1 R v', 'Karaka', 'Degrees', 'Rasi', 'Navamsa', 'Nakshatra (Pada, Lord)', 'Relationship', 'House', 'Lord']
+    x_positions = [20, 140, 230, 340, 460, 580, 820, 960, 1060]
     
     # Header background
-    draw.rectangle([20, y, width-20, y+50], fill='#d0d0d0', outline='black', width=2)
+    draw.rectangle([0, y, width, y+40], fill='#2d2d2d')
     
     for i, header in enumerate(headers):
-        # Draw vertical lines
-        if i > 0:
-            draw.line([(x_positions[i]-10, y), (x_positions[i]-10, y+50)], fill='black', width=1)
-        
-        header_lines = header.split('\n')
-        if len(header_lines) == 2:
-            draw.text((x_positions[i], y+15), header_lines[0], fill='black', font=header_font)
-            draw.text((x_positions[i], y+32), header_lines[1], fill='black', font=header_font)
-        else:
-            draw.text((x_positions[i], y+25), header, fill='black', font=header_font, anchor="lm")
+        draw.text((x_positions[i], y+20), header, fill='#b0b0b0', font=header_font, anchor="lm")
     
     y += 50
     
-    # Planets data with house calculations
-    planets_info = [
-        ('Ascendant', 'ascendant', 1, '-'),
-        ('Jupiter\n(Brahmin - Ministerial)', 'jupiter', None, '9,12'),
-        ('Saturn\n(Shudras - Service)', 'saturn', None, '10,11'),
-        ('Moon\n(Merchant - Royal)', 'moon', None, '4'),
-        ('Sun\n(Kshatriya - Royal)', 'sun', None, '5'),
-        ('Mercury\n(Merchant - Prince)', 'mercury', None, '3,6'),
-        ('Rahu', 'rahu', None, '11'),
-        ('Venus\n(Brahmin - Ministerial)', 'venus', None, '2,7'),
-        ('Mars\n(Kshatriya - Army Chief)', 'mars', None, '1,8'),
-        ('Ketu', 'ketu', None, '8'),
+    planets_order = [
+        ('Ascendant', 'ascendant', '#a594f9'),
+        ('Sun', 'sun', '#ff7e67'),
+        ('Moon', 'moon', '#6ebfb5'),
+        ('Mars', 'mars', '#ff5c5c'),
+        ('Mercury', 'mercury', '#89d672'),
+        ('Jupiter', 'jupiter', '#ffbb5c'),
+        ('Venus', 'venus', '#f29bff'),
+        ('Saturn', 'saturn', '#63b3ed'),
+        ('Rahu', 'rahu', '#63b3ed'),
+        ('Ketu', 'ketu', '#63b3ed'),
     ]
     
-    for idx, (planet_display, planet_key, house_num, houses_ruled) in enumerate(planets_info):
-        planet_data = chart.get(planet_key, {})
-        nakshatra_data = planet_data.get('nakshatra', {})
+    for idx, (display_name, key, color) in enumerate(planets_order):
+        planet_data = chart.get(key, {})
+        if not planet_data: continue
         
-        # Calculate house if not provided
-        if house_num is None:
-            sign_num = planet_data.get('sign_num', 0)
-            ascendant_sign = chart.get('ascendant', {}).get('sign_num', 0)
-            house_num = ((sign_num - ascendant_sign) % 12) + 1
+        # Grid line
+        draw.line([(0, y+40), (width, y+40)], fill='#333333', width=1)
         
-        # Row background
-        if idx % 2 == 0:
-            draw.rectangle([20, y, width-20, y+50], fill='white', outline='#cccccc', width=1)
-        else:
-            draw.rectangle([20, y, width-20, y+50], fill='#f9f9f9', outline='#cccccc', width=1)
+        # Name
+        draw.text((x_positions[0], y+20), display_name, fill=color, font=text_font, anchor="lm")
         
-        # Vertical lines
-        for i in range(1, len(x_positions)):
-            draw.line([(x_positions[i]-10, y), (x_positions[i]-10, y+50)], fill='#cccccc', width=1)
+        # Karaka
+        draw.text((x_positions[1], y+20), planet_data.get('karaka', '-'), fill='#ffffff', font=text_font, anchor="lm")
         
-        # Data
-        planet_lines = planet_display.split('\n')
-        if len(planet_lines) == 2:
-            draw.text((x_positions[0], y+12), planet_lines[0], fill='black', font=text_font)
-            draw.text((x_positions[0], y+30), planet_lines[1], fill='black', font=small_font)
-        else:
-            draw.text((x_positions[0], y+25), planet_display, fill='black', font=text_font, anchor="lm")
+        # Degrees
+        deg = planet_data.get('degree', 0)
+        minutes = int((deg % 1) * 60)
+        seconds = int(((deg % 1) * 60 % 1) * 60)
+        deg_str = f"{int(deg):02d}°{minutes:02d}'{seconds:02d}\""
+        draw.text((x_positions[2], y+20), deg_str, fill='#ffffff', font=text_font, anchor="lm")
         
-        draw.text((x_positions[1], y+25), str(house_num), fill='black', font=text_font, anchor="lm")
-        draw.text((x_positions[2], y+25), houses_ruled, fill='black', font=text_font, anchor="lm")
+        # Rasi
+        draw.text((x_positions[3], y+20), planet_data.get('sign', 'N/A'), fill='#6ebfb5', font=text_font, anchor="lm")
         
-        # Nakshatra with pada
-        nak_name = nakshatra_data.get('nakshatra', 'N/A')
-        pada = nakshatra_data.get('pada', 'N/A')
-        sign = planet_data.get('sign', 'N/A')
-        nak_text = f"{nak_name}\n({pada} - {sign})"
-        nak_lines = nak_text.split('\n')
-        draw.text((x_positions[3], y+15), nak_lines[0], fill='black', font=text_font)
-        draw.text((x_positions[3], y+32), nak_lines[1], fill='black', font=small_font)
+        # Navamsa (D9)
+        d9_data = chart.get('d9_chart', {}).get(key, {})
+        draw.text((x_positions[4], y+20), d9_data.get('sign', 'N/A'), fill='#6ebfb5', font=text_font, anchor="lm")
         
-        # Nature
-        nature = nakshatra_data.get('element', 'N/A')
-        draw.text((x_positions[4], y+25), nature, fill='black', font=text_font, anchor="lm")
+        # Nakshatra (Pada, Lord)
+        nak_info = planet_data.get('nakshatra', {})
+        nak_text = f"{nak_info.get('nakshatra', 'N/A')} ({nak_info.get('pada', 'N/A')}, {nak_info.get('lord', 'N/A')[:2]})"
+        draw.text((x_positions[5], y+20), nak_text, fill='#6ebfb5', font=text_font, anchor="lm")
         
-        # Caste
-        caste_map = {
-            'jupiter': 'Brahmin',
-            'venus': 'Brahmin',
-            'moon': 'Merchant',
-            'mercury': 'Merchant',
-            'sun': 'Kshatriya',
-            'mars': 'Kshatriya',
-            'saturn': 'Shudra',
-            'rahu': 'Outcaste',
-            'ketu': 'Outcaste',
-            'ascendant': 'Merchant'
-        }
-        caste = caste_map.get(planet_key, 'N/A')
-        draw.text((x_positions[5], y+25), caste, fill='black', font=text_font, anchor="lm")
+        # Relationship
+        draw.text((x_positions[6], y+20), planet_data.get('relationship', 'Neutral'), fill='#ffffff', font=text_font, anchor="lm")
+        
+        # House
+        draw.text((x_positions[7], y+20), str(planet_data.get('house', '-')), fill='#ffffff', font=text_font, anchor="lm")
+        
+        # Lord
+        draw.text((x_positions[8], y+20), planet_data.get('rules_houses', '-'), fill='#ffffff', font=text_font, anchor="lm")
         
         y += 50
     
@@ -236,7 +207,7 @@ def generate_report(name, gender, dob_date, dob_time, place_name):
     except ValueError:
         return "❌ Invalid Date/Time.", None, None, None, None, None, None, None
 
-    chart = generate_chart_with_nakshatras(name, year, month, day, hour, minute, place_name, lat, lon)
+    chart = generate_vedic_chart(name, year, month, day, hour, minute, place_name, lat, lon)
     
     if '_metadata' in chart:
         chart['_metadata']['gender'] = gender
@@ -312,8 +283,8 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                 gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
             
             with gr.Row():
-                dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value="1990-01-15")
-                dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value="12:30")
+                dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
+                dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
             
             place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
             
@@ -341,42 +312,158 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                 with gr.Tab("👨‍👩‍👧 D12 - Dwadasamsa"):
                     d12_chart = gr.Image(label="D12 Family Chart", height=500)
         
-        # TAB 2: AI Chat
-        with gr.Tab("🤖 Ask AI Astrologer"):
-            gr.Markdown("""
-            ### Chat with AI Astrologer
-            Generate your birth chart first, then ask any questions!
-            
-            **The AI knows:**
-            - Your planetary positions & nakshatras
-            - All divisional charts (D9, D10, D12)
-            - Vedic astrology principles
-            """)
+        # TAB 2: Vedic AI Chat
+        with gr.Tab("🕉️ Vedic AI Chat"):
+            with gr.Row():
+                # SIDEBAR (Left)
+                with gr.Column(scale=1):
+                    gr.Markdown("### ❓ Vedic Quick Questions")
+                    vedic_examples = [
+                        "💡 Will higher education help me?",
+                        "🎉 Will party lifestyle help me?",
+                        "🧭 Friends or family: who helps me?",
+                        "💍 Will marriage bring me happiness?",
+                        "🧘‍ Will monk life benefit me?",
+                        "✈️ Can travel improve my life?",
+                        "📈 Will I succeed in stock trading?",
+                        "⭐ Will I become famous?",
+                        "💰 Will I become a millionaire?",
+                        "👤 Describe my future spouse?",
+                        "👨‍👧 Relationship with my father?",
+                        "🎟️ Can I win the lottery?",
+                        "🔍 Special yogas in my chart?",
+                        "💼 Best career path for me?",
+                        "🌏 Will I get foreign education?"
+                    ]
+                    
+                    vedic_q_btns = []
+                    for ex in vedic_examples:
+                        vedic_q_btns.append(gr.Button(ex, variant="ghost", size="sm"))
 
-            def chat_response(message, history, chart_data):
-                """Handle chat interactions"""
+                # MAIN CHAT (Right)
+                with gr.Column(scale=3):
+                    gr.Markdown("### 🕉️ Expert Vedic Astrologer")
+                    v_chatbot = gr.Chatbot(label="Vedic Astrology Chat", height=500)
+                    
+                    with gr.Column() as v_suggestion_row:
+                        v_s_btn1 = gr.Button("", visible=False, size="sm")
+                        v_s_btn2 = gr.Button("", visible=False, size="sm")
+                        v_s_btn3 = gr.Button("", visible=False, size="sm")
+                    
+                    v_msg = gr.Textbox(label="Ask Vedic Astrology", placeholder="Ask any question about your life...", scale=7)
+
+        # TAB 3: KP AI Chat
+        with gr.Tab("🧭 KP AI Chat"):
+            with gr.Row():
+                # SIDEBAR (Left)
+                with gr.Column(scale=1):
+                    gr.Markdown("### 🔭 KP Quick Questions")
+                    kp_examples = [
+                        "🎯 Who is the sub-lord of my 10th house?",
+                        "💼 Which planets are significators for my career?",
+                        "🌟 What are my ruling planets right now?",
+                        "💍 KP analysis: When will I get married?",
+                        "📈 Which house cusp signifies business success?",
+                        "🌏 Will I travel abroad according to KP?",
+                        "🏦 Financial significators in my chart?",
+                        "🛡️ My strongest house significator?",
+                        "🔍 Sub-lord of my 7th house (Marriage)?",
+                        "📉 Career obstacles in KP chart?"
+                    ]
+                    
+                    kp_q_btns = []
+                    for ex in kp_examples:
+                        kp_q_btns.append(gr.Button(ex, variant="ghost", size="sm"))
+
+                # MAIN CHAT (Right)
+                with gr.Column(scale=3):
+                    gr.Markdown("### 🔭 Expert KP Astrologer")
+                    kp_chatbot = gr.Chatbot(label="KP Astrology Chat", height=500)
+                    
+                    with gr.Column() as kp_suggestion_row:
+                        kp_s_btn1 = gr.Button("", visible=False, size="sm")
+                        kp_s_btn2 = gr.Button("", visible=False, size="sm")
+                        kp_s_btn3 = gr.Button("", visible=False, size="sm")
+                    
+                    kp_msg = gr.Textbox(label="Ask KP Astrology", placeholder="Ask using Krishnamurti Paddhati rules...", scale=7)
+
+            def parse_ai_response(response):
+                """Extract text and suggestions from AI response"""
+                if "[SUGGESTIONS]" in response:
+                    parts = response.split("[SUGGESTIONS]")
+                    text = parts[0].strip()
+                    sug_raw = parts[1].replace("\n", ",").split(",")
+                    suggestions = [s.strip(" -.?*\"") + "?" for s in sug_raw if s.strip()]
+                    return text, suggestions[:3]
+                return response, []
+
+            def handle_chat_input(user_input, history, chart_data, is_kp=False):
+                """Unified chat entry point for Gradio 6.0"""
                 if not chart_data:
-                    return "⚠️ Please generate a birth chart first in the 'Birth Chart Generator' tab!"
+                    error_msg = "⚠️ Please generate a birth chart first in the first tab!"
+                    history.append({"role": "user", "content": user_input})
+                    history.append({"role": "assistant", "content": error_msg})
+                    return history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
                 
                 if not check_rate_limit():
-                    return "⚠️ Rate limit exceeded. Please wait a minute."
+                    history.append({"role": "user", "content": user_input})
+                    history.append({"role": "assistant", "content": "⚠️ Rate limit exceeded. Please wait a minute."})
+                    return history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
                 
-                if len(message) > 500:
-                    return "⚠️ Question too long. Keep it under 500 characters."
+                # Append user message
+                history.append({"role": "user", "content": user_input})
                 
-                response = get_astrology_prediction(chart_data, message)
-                return response
+                # Get AI response
+                response = get_astrology_prediction(chart_data, user_input, is_kp_mode=is_kp)
+                text, suggestions = parse_ai_response(response)
+                
+                # Append assistant response
+                history.append({"role": "assistant", "content": text})
+                
+                # Dynamic updates
+                s1 = gr.update(value=suggestions[0], visible=True) if len(suggestions) > 0 else gr.update(visible=False)
+                s2 = gr.update(value=suggestions[1], visible=True) if len(suggestions) > 1 else gr.update(visible=False)
+                s3 = gr.update(value=suggestions[2], visible=True) if len(suggestions) > 2 else gr.update(visible=False)
+                
+                return history, "", s1, s2, s3
 
-            gr.ChatInterface(
-                fn=chat_response,
-                additional_inputs=[chart_state],
-                examples=[
-                    ["What does my Sun sign mean?"],
-                    ["Tell me about my Moon placement"],
-                    ["What career suits my chart?"],
-                    ["Analyze my relationships based on Venus"]
-                ]
+            # VEDIC EVENTS
+            v_msg.submit(
+                lambda u, h, c: handle_chat_input(u, h, c, False),
+                [v_msg, v_chatbot, chart_state], 
+                [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
             )
+            for qb in vedic_q_btns:
+                qb.click(
+                    lambda u, h, c: handle_chat_input(u, h, c, False),
+                    [qb, v_chatbot, chart_state],
+                    [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
+                )
+            for sb in [v_s_btn1, v_s_btn2, v_s_btn3]:
+                sb.click(
+                    lambda u, h, c: handle_chat_input(u, h, c, False),
+                    [sb, v_chatbot, chart_state],
+                    [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
+                )
+
+            # KP EVENTS
+            kp_msg.submit(
+                lambda u, h, c: handle_chat_input(u, h, c, True),
+                [kp_msg, kp_chatbot, chart_state], 
+                [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
+            )
+            for qb in kp_q_btns:
+                qb.click(
+                    lambda u, h, c: handle_chat_input(u, h, c, True),
+                    [qb, kp_chatbot, chart_state],
+                    [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
+                )
+            for sb in [kp_s_btn1, kp_s_btn2, kp_s_btn3]:
+                sb.click(
+                    lambda u, h, c: handle_chat_input(u, h, c, True),
+                    [sb, kp_chatbot, chart_state],
+                    [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
+                )
     
     # Wire generate button
     generate_btn.click(
@@ -387,4 +474,4 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(share=True, server_name="0.0.0.0", server_port=7860)
+    demo.launch(share=False, server_name="0.0.0.0", server_port=7860)

@@ -1,11 +1,9 @@
 gradio
 kerykeion
 geopy
-google-generativeai
+google-genai
 python-dotenv
 matplotlib
 pillow
 numpy
-geopy
-google-generativeai
-gradio
+requests
