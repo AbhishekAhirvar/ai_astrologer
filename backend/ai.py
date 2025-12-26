@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure Hugging Face (using the token stored in GEMINI_API_KEY as per user environment)
-api_key = os.getenv("GEMINI_API_KEY")
+# Configure Hugging Face (using the token stored in KEY as per user environment)
+api_key = os.getenv("KEY")
 HF_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 
 def get_astrology_prediction(chart_data, user_query, is_kp_mode=False):
@@ -13,7 +13,7 @@ def get_astrology_prediction(chart_data, user_query, is_kp_mode=False):
     Sends essential chart data and query to Hugging Face Inference API.
     """
     if not api_key:
-        return "Error: Hugging Face API Token (GEMINI_API_KEY) is missing. Please set it in the .env file."
+        return "Error: Hugging Face API Token (KEY) is missing. Please set it in the .env file."
     
     try:
         if "error" in chart_data:
