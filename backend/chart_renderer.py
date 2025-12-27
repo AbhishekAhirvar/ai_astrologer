@@ -115,73 +115,73 @@ class NorthIndianChart:
             1: {
                 'text_center': (5, 7.0),
                 'rashi_pos': (5, 8.5),      # Prominent top position
-                'font_size': 9
+                'font_size': 10
             },
             # House 2: Top-left small triangle
             2: {
-                'text_center': (2.8, 7.8),
-                'rashi_pos': (1.7, 8.5),    # Top-left corner
-                'font_size': 8
+                'text_center': (2.8, 8.0),
+                'rashi_pos': (1.7, 8.8),    # Top-left corner
+                'font_size': 9
             },
             # House 3: Left-upper
             3: {
-                'text_center': (1.8, 6.5),
-                'rashi_pos': (1.3, 7.5),    # Left upper
-                'font_size': 8
+                'text_center': (1.7, 6.99),  # Moved down slightly from 6.5
+                'rashi_pos': (1.3, 8.20),    # Left upper
+                'font_size': 9
             },
             # House 4: Left big triangle
             4: {
-                'text_center': (2.2, 5.0),
+                'text_center': (2.2, 4.8),
                 'rashi_pos': (1.3, 5.0),    # Left center
-                'font_size': 9
+                'font_size': 10
             },
             # House 5: Left-lower
             5: {
-                'text_center': (1.8, 3.5),
+                'text_center': (1.8, 3.4),
                 'rashi_pos': (1.3, 2.5),    # Left lower
-                'font_size': 8
+                'font_size': 9
             },
             # House 6: Bottom-left small
             6: {
                 'text_center': (2.8, 2.2),
                 'rashi_pos': (1.7, 1.5),    # Bottom-left corner
-                'font_size': 8
+                'font_size': 9
             },
             # House 7: Bottom triangle
             7: {
                 'text_center': (5, 3.0),
                 'rashi_pos': (5, 1.5),      # Bottom center
-                'font_size': 9
+                'font_size': 10
             },
             # House 8: Bottom-right small
             8: {
                 'text_center': (7.2, 2.2),
                 'rashi_pos': (8.3, 1.5),    # Bottom-right corner
-                'font_size': 8
+                'font_size': 9
             },
             # House 9: Right-lower
             9: {
-                'text_center': (8.2, 3.5),
+                'text_center': (8.2, 3.1),
                 'rashi_pos': (8.7, 2.5),    # Right lower
-                'font_size': 8
+                'font_size': 9
             },
             # House 10: Right big triangle
             10: {
                 'text_center': (7.8, 5.0),
                 'rashi_pos': (8.7, 5.0),    # Right center
-                'font_size': 9
+                'font_size': 10
             },
             # House 11: Right-upper
             11: {
-                'text_center': (8.2, 6.5),
+                'text_center': (8.2, 6.7),
                 'rashi_pos': (8.7, 7.5),    # Right upper
-                'font_size': 8
+                'font_size': 9
             },
             # House 12: Top-right small
             12: {
-                'text_center': (7.2, 7.8),
+                'text_center': (7.2, 8.3),  # Moved up slightly from 7.8
                 'rashi_pos': (8.3, 8.5),    # Top-right corner
-                'font_size': 8
+                'font_size': 9
             },
         }
         
@@ -212,11 +212,7 @@ class NorthIndianChart:
                 color='#2E4057',       # Dark blue-grey (professional)
                 weight='bold',         # Bold for visibility
                 family='sans-serif',
-                bbox=dict(boxstyle='circle,pad=0.2', 
-                         facecolor='#FFFFFF',    # White background
-                         edgecolor='#2E4057', 
-                         linewidth=1.2,
-                         alpha=0.8)
+                bbox=None
             )
     
     def get_planets_by_house(self):
@@ -303,7 +299,7 @@ class NorthIndianChart:
                     ha='center', va='center',
                     fontsize=font_size,
                     color='#1a1a1a',      # Dark text
-                    weight='medium',
+                    weight='bold',
                     family='sans-serif'
                 )
     
@@ -374,7 +370,7 @@ class NakshatraTable:
         
         try:
             title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-            text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
+            text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
         except:
             title_font = ImageFont.load_default()
             text_font = ImageFont.load_default()

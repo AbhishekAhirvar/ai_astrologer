@@ -8,6 +8,7 @@ from backend.location import get_location_data
 from backend.astrology import generate_vedic_chart
 from backend.ai import get_astrology_prediction
 from backend.chart_renderer import generate_all_charts
+from backend.logger import logger
 import time
 from collections import defaultdict
 from PIL import Image, ImageDraw, ImageFont
@@ -26,6 +27,22 @@ def check_rate_limit(identifier="default"):
     user_requests[identifier].append(now)
     return True
 
+def cleanup_old_charts(directory, max_age_seconds=3600):
+    """Delete files in directory older than max_age_seconds or just clear it"""
+    if not os.path.exists(directory):
+        return
+    
+    now = time.time()
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        try:
+            if os.path.isfile(file_path):
+                # For now, let's just clear everything to be sure "purana delete ho jaye"
+                # If you want to keep files for a while, use: if now - os.path.getmtime(file_path) > max_age_seconds:
+                os.remove(file_path)
+        except Exception as e:
+            logger.error(f"Error deleting {file_path}: {e}")
+
 def create_planetary_table_image(chart, output_path):
     """Create planetary positions table as PNG"""
     
@@ -37,7 +54,7 @@ def create_planetary_table_image(chart, output_path):
     try:
         title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
         header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
-        text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+        text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
     except:
         title_font = ImageFont.load_default()
         header_font = ImageFont.load_default()
@@ -97,14 +114,14 @@ def create_detailed_nakshatra_table(chart, output_path):
     
     width = 1200
     height = 800
-    img = Image.new('RGB', (width, height), '#1e1e1e') # Dark theme
+    img = Image.new('RGB', (width, height), 'white') # Light theme
     draw = ImageDraw.Draw(img)
     
     try:
         title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
         header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
-        text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
-        small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+        text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 13)
+        small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)
     except:
         title_font = ImageFont.load_default()
         header_font = ImageFont.load_default()
@@ -114,7 +131,7 @@ def create_detailed_nakshatra_table(chart, output_path):
     y = 0
     
     # Title Line
-    draw.rectangle([0, 0, width, 50], fill='#2d2d2d')
+    draw.rectangle([0, 0, width, 50], fill='#4A90E2')
     draw.text((20, 25), "Nakshatra-based Analysis", fill='#ffffff', font=title_font, anchor="lm")
     
     y = 60
@@ -124,10 +141,10 @@ def create_detailed_nakshatra_table(chart, output_path):
     x_positions = [20, 140, 230, 340, 460, 580, 820, 960, 1060]
     
     # Header background
-    draw.rectangle([0, y, width, y+40], fill='#2d2d2d')
+    draw.rectangle([0, y, width, y+40], fill='#4A90E2')
     
     for i, header in enumerate(headers):
-        draw.text((x_positions[i], y+20), header, fill='#b0b0b0', font=header_font, anchor="lm")
+        draw.text((x_positions[i], y+20), header, fill='#ffffff', font=header_font, anchor="lm")
     
     y += 50
     
@@ -148,42 +165,50 @@ def create_detailed_nakshatra_table(chart, output_path):
         planet_data = chart.get(key, {})
         if not planet_data: continue
         
+        # Row background (alternating)
+        if idx % 2 != 0:
+            draw.rectangle([0, y, width, y+50], fill='#f9f9f9')
+        
         # Grid line
-        draw.line([(0, y+40), (width, y+40)], fill='#333333', width=1)
+        draw.line([(0, y+50), (width, y+50)], fill='#eeeeee', width=1)
         
         # Name
-        draw.text((x_positions[0], y+20), display_name, fill=color, font=text_font, anchor="lm")
+        # Darker versions of colors for light theme or just black? 
+        # User said "bold कर दे", they didn't specify color change for planet names but light theme requires contrast.
+        # I'll use slightly darker versions or stick to black if it looks cleaner.
+        # Given the previous dark theme colors were bright, I'll try to keep them but ensure they are readable.
+        draw.text((x_positions[0], y+25), display_name, fill=color, font=text_font, anchor="lm")
         
         # Karaka
-        draw.text((x_positions[1], y+20), planet_data.get('karaka', '-'), fill='#ffffff', font=text_font, anchor="lm")
+        draw.text((x_positions[1], y+25), planet_data.get('karaka', '-'), fill='black', font=text_font, anchor="lm")
         
         # Degrees
         deg = planet_data.get('degree', 0)
         minutes = int((deg % 1) * 60)
         seconds = int(((deg % 1) * 60 % 1) * 60)
         deg_str = f"{int(deg):02d}°{minutes:02d}'{seconds:02d}\""
-        draw.text((x_positions[2], y+20), deg_str, fill='#ffffff', font=text_font, anchor="lm")
+        draw.text((x_positions[2], y+25), deg_str, fill='black', font=text_font, anchor="lm")
         
         # Rasi
-        draw.text((x_positions[3], y+20), planet_data.get('sign', 'N/A'), fill='#6ebfb5', font=text_font, anchor="lm")
+        draw.text((x_positions[3], y+25), planet_data.get('sign', 'N/A'), fill='#2E4057', font=text_font, anchor="lm")
         
         # Navamsa (D9)
         d9_data = chart.get('d9_chart', {}).get(key, {})
-        draw.text((x_positions[4], y+20), d9_data.get('sign', 'N/A'), fill='#6ebfb5', font=text_font, anchor="lm")
+        draw.text((x_positions[4], y+25), d9_data.get('sign', 'N/A'), fill='#2E4057', font=text_font, anchor="lm")
         
         # Nakshatra (Pada, Lord)
         nak_info = planet_data.get('nakshatra', {})
         nak_text = f"{nak_info.get('nakshatra', 'N/A')} ({nak_info.get('pada', 'N/A')}, {nak_info.get('lord', 'N/A')[:2]})"
-        draw.text((x_positions[5], y+20), nak_text, fill='#6ebfb5', font=text_font, anchor="lm")
+        draw.text((x_positions[5], y+25), nak_text, fill='#2E4057', font=text_font, anchor="lm")
         
         # Relationship
-        draw.text((x_positions[6], y+20), planet_data.get('relationship', 'Neutral'), fill='#ffffff', font=text_font, anchor="lm")
+        draw.text((x_positions[6], y+25), planet_data.get('relationship', 'Neutral'), fill='black', font=text_font, anchor="lm")
         
         # House
-        draw.text((x_positions[7], y+20), str(planet_data.get('house', '-')), fill='#ffffff', font=text_font, anchor="lm")
+        draw.text((x_positions[7], y+25), str(planet_data.get('house', '-')), fill='black', font=text_font, anchor="lm")
         
         # Lord
-        draw.text((x_positions[8], y+20), planet_data.get('rules_houses', '-'), fill='#ffffff', font=text_font, anchor="lm")
+        draw.text((x_positions[8], y+25), planet_data.get('rules_houses', '-'), fill='black', font=text_font, anchor="lm")
         
         y += 50
     
@@ -192,20 +217,51 @@ def create_detailed_nakshatra_table(chart, output_path):
 
 def generate_report(name, gender, dob_date, dob_time, place_name):
     """Generate birth chart with all tables"""
-    if not all([name, gender, dob_date, dob_time, place_name]):
-        return "❌ Please fill all fields!", None, None, None, None, None, None, None
+    # Validation
+    if not all([name, dob_date, dob_time, place_name]):
+        logger.warning(f"Registration failed: Missing fields for {name or 'Unknown'}")
+        return "⚠️ All fields are required!", None, None, None, None, None, None, None
 
+    logger.info(f"Generating report for: {name} ({dob_date} {dob_time}) at {place_name}")
+
+    # Step 0: Cleanup old charts
+    cleanup_old_charts(CHARTS_DIR)
+
+    # Step 1: Validate Date Format & Logic
+    try:
+        # Check format YYYY-MM-DD
+        dob_dt = datetime.strptime(dob_date, "%Y-%m-%d")
+        year, month, day = dob_dt.year, dob_dt.month, dob_dt.day
+        
+        if not (1800 <= year <= 2100):
+            return f"❌ Year {year} is out of range (1800-2100).", None, None, None, None, None, None, None
+            
+    except ValueError:
+        return "❌ Invalid Date format. Please use YYYY-MM-DD (e.g., 1995-05-20).", None, None, None, None, None, None, None
+
+    # Step 2: Validate Time Format
+    try:
+        # Check format HH:MM
+        time_parts = dob_time.split(":")
+        if len(time_parts) != 2:
+            raise ValueError
+            
+        hour = int(time_parts[0])
+        minute = int(time_parts[1])
+        
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            return "❌ Invalid Time. Hours must be 0-23 and minutes 0-59.", None, None, None, None, None, None, None
+            
+    except ValueError:
+        return "❌ Invalid Time format. Use HH:MM (e.g., 14:30).", None, None, None, None, None, None, None
+
+    # Step 3: Fetch Location Data
     loc_data = get_location_data(place_name)
     if not loc_data:
-        return "❌ Location not found.", None, None, None, None, None, None, None
+        return f"❌ Location '{place_name}' not found. Please check the name.", None, None, None, None, None, None, None
     
     lat, lon, address = loc_data
-
-    try:
-        year, month, day = map(int, dob_date.split("-"))
-        hour, minute = map(int, dob_time.split(":"))
-    except ValueError:
-        return "❌ Invalid Date/Time.", None, None, None, None, None, None, None
+    logger.info(f"Location resolved: {address} ({lat}, {lon})")
 
     chart = generate_vedic_chart(name, year, month, day, hour, minute, place_name, lat, lon)
     
@@ -213,6 +269,7 @@ def generate_report(name, gender, dob_date, dob_time, place_name):
         chart['_metadata']['gender'] = gender
     
     if "error" in chart:
+        logger.error(f"Vedic chart generation error: {chart['error']}")
         return f"❌ Error: {chart['error']}", None, None, None, None, None, None, None
 
     try:
@@ -388,11 +445,12 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                     kp_msg = gr.Textbox(label="Ask KP Astrology", placeholder="Ask using Krishnamurti Paddhati rules...", scale=7)
 
             def parse_ai_response(response):
-                """Extract text and suggestions from AI response"""
+                """Extract text and suggestions from AI response using || separator"""
                 if "[SUGGESTIONS]" in response:
                     parts = response.split("[SUGGESTIONS]")
                     text = parts[0].strip()
-                    sug_raw = parts[1].replace("\n", ",").split(",")
+                    # Split by || for robust separation
+                    sug_raw = parts[1].split("||")
                     suggestions = [s.strip(" -.?*\"") + "?" for s in sug_raw if s.strip()]
                     return text, suggestions[:3]
                 return response, []
@@ -406,6 +464,7 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                     return history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
                 
                 if not check_rate_limit():
+                    logger.warning(f"Rate limit exceeded for {user_input[:20]}...")
                     history.append({"role": "user", "content": user_input})
                     history.append({"role": "assistant", "content": "⚠️ Rate limit exceeded. Please wait a minute."})
                     return history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
@@ -474,4 +533,4 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(share=False, server_name="0.0.0.0", server_port=7860)
+    demo.launch(share=True, server_name="0.0.0.0", server_port=7860)

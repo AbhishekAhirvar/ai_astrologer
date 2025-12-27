@@ -10,6 +10,7 @@ import pytz
 from typing import Dict, Tuple, Optional, List
 from enum import Enum
 from backend.nakshatra_data import get_nakshatra_by_longitude
+from backend.logger import logger
 
 
 # ============================================================================
@@ -142,6 +143,7 @@ def calculate_julian_day(year: int, month: int, day: int,
         tz = pytz.timezone('Asia/Kolkata')
         dt = tz.localize(datetime(year, month, day, hour, minute))
         dt_utc = dt.astimezone(pytz.UTC)
+        logger.debug(f"Calculated Julian Day for {dt} (UTC: {dt_utc})")
         return swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, 
                          dt_utc.hour + dt_utc.minute / 60.0)
     except Exception:

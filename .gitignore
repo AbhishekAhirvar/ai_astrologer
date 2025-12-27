@@ -205,3 +205,4 @@ cython_debug/
 generated_charts/
 cache/
 .gradio/
+test_outputs/
