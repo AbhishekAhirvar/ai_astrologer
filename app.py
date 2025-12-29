@@ -7,7 +7,7 @@ import gradio as gr
 from backend.location import get_location_data
 from backend.astrology import generate_vedic_chart
 from backend.ai import get_astrology_prediction
-from backend.chart_renderer import generate_all_charts
+from backend.chart_renderer import generate_all_charts, generate_single_varga
 from backend.logger import logger
 import time
 from collections import defaultdict
@@ -100,7 +100,18 @@ def create_planetary_table_image(chart, output_path):
         
         draw.text((x_positions[0], y+12), planet_display, fill='black', font=text_font)
         draw.text((x_positions[1], y+12), planet_data.get('sign', 'N/A'), fill='black', font=text_font)
-        draw.text((x_positions[2], y+12), f"{planet_data.get('degree', 0):.1f}°", fill='black', font=text_font)
+        deg = planet_data.get('degree', 0)
+        minutes = int((deg % 1) * 60)
+        seconds = int(((deg % 1) * 60 % 1) * 60)
+        deg_str = f"{int(deg):02d}°{minutes:02d}'" # Shortened DMS for this table as space is tight, or just use same format?
+        # User wants consistency.
+        # Planetary Table Space: column 3 is at x=350. Next is 480. 130px width.
+        # "28°59'59"" is approx 10 chars. Sans font 14px. Should fit.
+        deg_str = f"{int(deg):02d}°{minutes:02d}'{seconds:02d}\""
+        
+        draw.text((x_positions[0], y+12), planet_display, fill='black', font=text_font)
+        draw.text((x_positions[1], y+12), planet_data.get('sign', 'N/A'), fill='black', font=text_font)
+        draw.text((x_positions[2], y+12), deg_str, fill='black', font=text_font)
         draw.text((x_positions[3], y+12), nakshatra_data.get('nakshatra', 'N/A'), fill='black', font=text_font)
         draw.text((x_positions[4], y+12), nakshatra_data.get('lord', 'N/A'), fill='black', font=text_font)
         
@@ -137,47 +148,53 @@ def create_detailed_nakshatra_table(chart, output_path):
     y = 60
     
     # Table header
-    headers = ['D1 R v', 'Karaka', 'Degrees', 'Rasi', 'Navamsa', 'Nakshatra (Pada, Lord)', 'Relationship', 'House', 'Lord']
+    headers = ['Planet', 'Karaka', 'Degrees', 'Rasi', 'Navamsa', 'Nakshatra (Pada, Lord)', 'Relationship', 'House', 'Lord']
     x_positions = [20, 140, 230, 340, 460, 580, 820, 960, 1060]
     
     # Header background
     draw.rectangle([0, y, width, y+40], fill='#4A90E2')
     
+    # Make header text white and bold
     for i, header in enumerate(headers):
-        draw.text((x_positions[i], y+20), header, fill='#ffffff', font=header_font, anchor="lm")
+        draw.text((x_positions[i], y+20), header, fill='white', font=header_font, anchor="lm")
     
     y += 50
     
     planets_order = [
-        ('Ascendant', 'ascendant', '#a594f9'),
-        ('Sun', 'sun', '#ff7e67'),
-        ('Moon', 'moon', '#6ebfb5'),
-        ('Mars', 'mars', '#ff5c5c'),
-        ('Mercury', 'mercury', '#89d672'),
-        ('Jupiter', 'jupiter', '#ffbb5c'),
-        ('Venus', 'venus', '#f29bff'),
-        ('Saturn', 'saturn', '#63b3ed'),
-        ('Rahu', 'rahu', '#63b3ed'),
-        ('Ketu', 'ketu', '#63b3ed'),
+        ('Ascendant', 'ascendant'),
+        ('Sun', 'sun'),
+        ('Moon', 'moon'),
+        ('Mars', 'mars'),
+        ('Mercury', 'mercury'),
+        ('Jupiter', 'jupiter'),
+        ('Venus', 'venus'),
+        ('Saturn', 'saturn'),
+        ('Rahu', 'rahu'),
+        ('Ketu', 'ketu'),
     ]
     
-    for idx, (display_name, key, color) in enumerate(planets_order):
+    for idx, (display_name, key) in enumerate(planets_order):
         planet_data = chart.get(key, {})
         if not planet_data: continue
         
-        # Row background (alternating)
-        if idx % 2 != 0:
-            draw.rectangle([0, y, width, y+50], fill='#f9f9f9')
+        # Consistent Styling with Planetary Table
+        # Row background (alternating is fine, but lets match the "Card" look if requested, 
+        # but user said "consistent". The Planetary table has a specific outline style.
+        # Let's try to mimic that outline style here too, but this table is wider.
         
-        # Grid line
-        draw.line([(0, y+50), (width, y+50)], fill='#eeeeee', width=1)
+        # Planetary table logic:
+        # if idx % 2 == 0: draw.rectangle(..., fill='#f0f0f0')
+        # draw.rectangle(..., outline='#cccccc', width=1)
+        
+        row_height = 50
+        
+        if idx % 2 == 0:
+            draw.rectangle([10, y, width-10, y+row_height], fill='#f0f0f0')
+            
+        draw.rectangle([10, y, width-10, y+row_height], outline='#cccccc', width=1)
         
         # Name
-        # Darker versions of colors for light theme or just black? 
-        # User said "bold कर दे", they didn't specify color change for planet names but light theme requires contrast.
-        # I'll use slightly darker versions or stick to black if it looks cleaner.
-        # Given the previous dark theme colors were bright, I'll try to keep them but ensure they are readable.
-        draw.text((x_positions[0], y+25), display_name, fill=color, font=text_font, anchor="lm")
+        draw.text((x_positions[0], y+25), display_name, fill='black', font=text_font, anchor="lm")
         
         # Karaka
         draw.text((x_positions[1], y+25), planet_data.get('karaka', '-'), fill='black', font=text_font, anchor="lm")
@@ -190,16 +207,16 @@ def create_detailed_nakshatra_table(chart, output_path):
         draw.text((x_positions[2], y+25), deg_str, fill='black', font=text_font, anchor="lm")
         
         # Rasi
-        draw.text((x_positions[3], y+25), planet_data.get('sign', 'N/A'), fill='#2E4057', font=text_font, anchor="lm")
+        draw.text((x_positions[3], y+25), planet_data.get('sign', 'N/A'), fill='black', font=text_font, anchor="lm")
         
         # Navamsa (D9)
         d9_data = chart.get('d9_chart', {}).get(key, {})
-        draw.text((x_positions[4], y+25), d9_data.get('sign', 'N/A'), fill='#2E4057', font=text_font, anchor="lm")
+        draw.text((x_positions[4], y+25), d9_data.get('sign', 'N/A'), fill='black', font=text_font, anchor="lm")
         
         # Nakshatra (Pada, Lord)
         nak_info = planet_data.get('nakshatra', {})
         nak_text = f"{nak_info.get('nakshatra', 'N/A')} ({nak_info.get('pada', 'N/A')}, {nak_info.get('lord', 'N/A')[:2]})"
-        draw.text((x_positions[5], y+25), nak_text, fill='#2E4057', font=text_font, anchor="lm")
+        draw.text((x_positions[5], y+25), nak_text, fill='black', font=text_font, anchor="lm")
         
         # Relationship
         draw.text((x_positions[6], y+25), planet_data.get('relationship', 'Neutral'), fill='black', font=text_font, anchor="lm")
@@ -210,7 +227,7 @@ def create_detailed_nakshatra_table(chart, output_path):
         # Lord
         draw.text((x_positions[8], y+25), planet_data.get('rules_houses', '-'), fill='black', font=text_font, anchor="lm")
         
-        y += 50
+        y += row_height
     
     img.save(output_path)
     return output_path
@@ -229,15 +246,48 @@ def generate_report(name, gender, dob_date, dob_time, place_name):
 
     # Step 1: Validate Date Format & Logic
     try:
-        # Check format YYYY-MM-DD
-        dob_dt = datetime.strptime(dob_date, "%Y-%m-%d")
+        # Flexible Date Parsing
+        # Try different formats
+        dob_dt = None
+        formats_to_try = [
+            "%Y-%m-%d", # 2023-05-20
+            "%d-%m-%Y", # 20-05-2023
+            "%d/%m/%Y", # 20/05/2023
+            "%Y/%m/%d", # 2023/05/20
+            "%d%m%Y",   # 20052023
+            "%Y%m%d"    # 20230520
+        ]
+        
+        # Sanitize input: remove extra spaces
+        clean_date = dob_date.strip()
+        
+        # If user just typed DDMMYYYY without separators
+        if len(clean_date) == 8 and clean_date.isdigit():
+             # Ambiguity check: 01022023 -> 1st Feb or 2nd Jan?
+             # Standard assumptions: if first part > 12 likely DD.
+             # We will try DDMMYYYY first as it's common in India/UK.
+             formats_to_try = ["%d%m%Y", "%Y%m%d"]
+        
+        for fmt in formats_to_try:
+            try:
+                dob_dt = datetime.strptime(clean_date, fmt)
+                break
+            except ValueError:
+                continue
+                
+        if not dob_dt:
+             raise ValueError("No valid format found")
+             
         year, month, day = dob_dt.year, dob_dt.month, dob_dt.day
+        
+        # Normalize date string for display/logging
+        dob_date = dob_dt.strftime("%Y-%m-%d")
         
         if not (1800 <= year <= 2100):
             return f"❌ Year {year} is out of range (1800-2100).", None, None, None, None, None, None, None
             
     except ValueError:
-        return "❌ Invalid Date format. Please use YYYY-MM-DD (e.g., 1995-05-20).", None, None, None, None, None, None, None
+        return "❌ Invalid Date format. Use YYYY-MM-DD, DD-MM-YYYY or just DDMMYYYY.", None, None, None, None, None, None, None
 
     # Step 2: Validate Time Format
     try:
@@ -310,11 +360,30 @@ def generate_report(name, gender, dob_date, dob_time, place_name):
     create_detailed_nakshatra_table(chart, nak_table_path)
     
     d1_img = chart_images.get('D1')
-    d9_img = chart_images.get('D9')
-    d10_img = chart_images.get('D10')
-    d12_img = chart_images.get('D12')
     
-    return summary_text, table_path, nak_table_path, d1_img, d9_img, d10_img, d12_img, chart
+    return summary_text, table_path, nak_table_path, d1_img, chart
+
+def update_varga_display(chart_data, varga_type):
+    """Update varga chart image based on dropdown selection"""
+    if not chart_data:
+        return None
+    
+    # Map label to chart key
+    mapping = {
+        "D1 Rasi": "D1",
+        "Moon Chart": "Moon",
+        "Sun Chart": "Sun",
+        "Arudha Lagna": "Arudha"
+    }
+    
+    chart_code = mapping.get(varga_type)
+    if not chart_code:
+        # Extract D number from string like "D9 Navamsa" -> "D9"
+        chart_code = varga_type.split(' ')[0]
+    
+    name = chart_data.get('_metadata', {}).get('name', 'User')
+    img_path = generate_single_varga(chart_data, chart_code, person_name=name, output_dir=CHARTS_DIR)
+    return img_path
 
 
 # UI
@@ -360,14 +429,22 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                 with gr.Tab("🎯 D1 - Rasi Chart"):
                     d1_chart = gr.Image(label="D1 Birth Chart", height=500)
                 
-                with gr.Tab("💍 D9 - Navamsa"):
-                    d9_chart = gr.Image(label="D9 Marriage Chart", height=500)
-                
-                with gr.Tab("💼 D10 - Dasamsa"):
-                    d10_chart = gr.Image(label="D10 Career Chart", height=500)
-                
-                with gr.Tab("👨‍👩‍👧 D12 - Dwadasamsa"):
-                    d12_chart = gr.Image(label="D12 Family Chart", height=500)
+                with gr.Tab("💠 Divisional Charts (Vargas)"):
+                    with gr.Row():
+                        varga_select = gr.Dropdown(
+                            label="Select Varga Chart",
+                            choices=[
+                                "D1 Rasi", "Moon Chart", "Sun Chart", "Arudha Lagna",
+                                "D2 Hora", "D3 Drekkana", "D4 Chaturthamsa", 
+                                "D5 Panchamsa", "D6 Shashtamsa", "D7 Saptamsa", "D8 Ashtamsa",
+                                "D9 Navamsa", "D10 Dasamsa", "D11 Rudramsa", "D12 Dwadasamsa",
+                                "D16 Shodasamsa", "D20 Vimsamsa", "D24 Siddhamsa", 
+                                "D27 Nakshatramsa", "D30 Trimsamsa", "D40 Khavedamsa", 
+                                "D45 Akshavedamsa", "D60 Shashtyamsa"
+                            ],
+                            value="D9 Navamsa"
+                        )
+                    varga_chart_img = gr.Image(label="Varga Chart", height=500)
         
         # TAB 2: Vedic AI Chat
         with gr.Tab("🕉️ Vedic AI Chat"):
@@ -528,7 +605,18 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
     generate_btn.click(
         generate_report,
         [name, gender, dob_date, dob_time, place_name],
-        [chart_summary, planetary_table_img, nakshatra_detailed_img, d1_chart, d9_chart, d10_chart, d12_chart, chart_state]
+        [chart_summary, planetary_table_img, nakshatra_detailed_img, d1_chart, chart_state]
+    ).then(
+        update_varga_display,
+        [chart_state, varga_select],
+        [varga_chart_img]
+    )
+    
+    # Update varga on dropdown change
+    varga_select.change(
+        update_varga_display,
+        [chart_state, varga_select],
+        [varga_chart_img]
     )
 
 

@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from backend.astrology import generate_vedic_chart
 import json
@@ -8,10 +8,10 @@ import json
 def verify_test_chart():
     # Example birth details (You can change these to match your known data)
     name = "Test User"
-    year, month, day = 1990, 1, 15
-    hour, minute = 12, 30
+    year, month, day = 1990, 1, 1
+    hour, minute = 12, 00
     city = "New Delhi"
-    lat, lon = 28.6139, 77.2090
+    lat, lon = 28.3939, 77.1490
     
     print(f"--- Generating Chart for: {name} ---")
     print(f"Details: {year}-{month}-{day} {hour}:{minute} at {city}\n")

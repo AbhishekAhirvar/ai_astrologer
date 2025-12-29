@@ -10,77 +10,37 @@ import pytz
 from typing import Dict, Tuple, Optional, List
 from enum import Enum
 from backend.nakshatra_data import get_nakshatra_by_longitude
+from backend.varga_charts import calculate_all_vargas
 from backend.logger import logger
-
+from backend.config import (
+    ZODIAC_SIGNS, SIGN_LORDS, NATURAL_RELATIONSHIPS, 
+    KARAKA_LABELS, PLANET_IDS, DEFAULT_AYANAMSA
+)
+from backend.exceptions import (
+    AstrologyError, InvalidDateError, InvalidLocationError, 
+    EphemerisCalculationError
+)
 
 # ============================================================================
-# CONSTANTS
+# HELPER FUNCTIONS
 # ============================================================================
 
-class ZodiacSign(Enum):
-    """Zodiac signs enumeration"""
-    ARIES = 0
-    TAURUS = 1
-    GEMINI = 2
-    CANCER = 3
-    LEO = 4
-    VIRGO = 5
-    LIBRA = 6
-    SCORPIO = 7
-    SAGITTARIUS = 8
-    CAPRICORN = 9
-    AQUARIUS = 10
-    PISCES = 11
+def validate_input(year: int, month: int, day: int, 
+                   hour: int, minute: int, lat: float, lon: float) -> None:
+    """Validate date, time, and location inputs."""
+    try:
+        datetime(year, month, day, hour, minute)
+    except ValueError as e:
+        logger.error(f"Invalid date/time input: {year}-{month}-{day} {hour}:{minute} - {str(e)}")
+        raise InvalidDateError(f"Invalid date/time: {str(e)}")
 
-
-ZODIAC_SIGNS = [
-    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
-]
-
-# Sign lords for Vedic astrology
-SIGN_LORDS = {
-    0: 'Mars',      # Aries
-    1: 'Venus',     # Taurus
-    2: 'Mercury',   # Gemini
-    3: 'Moon',      # Cancer
-    4: 'Sun',       # Leo
-    5: 'Mercury',   # Virgo
-    6: 'Venus',     # Libra
-    7: 'Mars',      # Scorpio
-    8: 'Jupiter',   # Sagittarius
-    9: 'Saturn',    # Capricorn
-    10: 'Saturn',   # Aquarius
-    11: 'Jupiter'   # Pisces
-}
-
-# Natural relationships (Friend=1, Neutral=0, Enemy=-1)
-NATURAL_RELATIONSHIPS = {
-    'Sun': {'Moon': 1, 'Mars': 1, 'Jupiter': 1, 'Mercury': 0, 'Venus': -1, 'Saturn': -1},
-    'Moon': {'Sun': 1, 'Mercury': 1, 'Mars': 0, 'Jupiter': 0, 'Venus': 0, 'Saturn': 0},
-    'Mars': {'Sun': 1, 'Moon': 1, 'Jupiter': 1, 'Venus': 0, 'Saturn': 0, 'Mercury': -1},
-    'Mercury': {'Sun': 1, 'Venus': 1, 'Mars': 0, 'Jupiter': 0, 'Saturn': 0, 'Moon': -1},
-    'Jupiter': {'Sun': 1, 'Moon': 1, 'Mars': 1, 'Mercury': -1, 'Venus': -1, 'Saturn': 0},
-    'Venus': {'Mercury': 1, 'Saturn': 1, 'Mars': 0, 'Jupiter': 0, 'Sun': -1, 'Moon': -1},
-    'Saturn': {'Venus': 1, 'Mercury': 1, 'Jupiter': 0, 'Sun': -1, 'Moon': -1, 'Mars': -1},
-    'Rahu': {'Venus': 1, 'Saturn': 1, 'Mercury': 1, 'Jupiter': 0, 'Sun': -1, 'Moon': -1, 'Mars': -1},
-    'Ketu': {'Mars': 1, 'Jupiter': 1, 'Sun': 1, 'Moon': 1, 'Venus': 0, 'Saturn': 0, 'Mercury': -1}
-}
-
-# Karaka labels (Atmakaraka to Darakaraka)
-KARAKA_LABELS = ['AK', 'AmK', 'BK', 'MK', 'PK', 'GK', 'DK']
-
-# Swiss Ephemeris planet IDs
-PLANET_IDS = {
-    'sun': swe.SUN,
-    'moon': swe.MOON,
-    'mercury': swe.MERCURY,
-    'venus': swe.VENUS,
-    'mars': swe.MARS,
-    'jupiter': swe.JUPITER,
-    'saturn': swe.SATURN,
-    'rahu': swe.TRUE_NODE,
-}
+    if not (-90 <= lat <= 90):
+        logger.error(f"Invalid latitude: {lat}")
+        raise InvalidLocationError("Latitude must be between -90 and 90 degrees.")
+    
+    if not (-180 <= lon <= 180):
+        logger.error(f"Invalid longitude: {lon}")
+        raise InvalidLocationError("Longitude must be between -180 and 180 degrees.")
 
 
 # ============================================================================
@@ -138,17 +98,25 @@ def calculate_julian_day(year: int, month: int, day: int,
     
     Returns:
         Julian Day number
+        
+    Raises:
+        EphemerisCalculationError: If calculation fails
     """
     try:
+        # Input validation implicit in datetime constructor
         tz = pytz.timezone('Asia/Kolkata')
         dt = tz.localize(datetime(year, month, day, hour, minute))
         dt_utc = dt.astimezone(pytz.UTC)
-        logger.debug(f"Calculated Julian Day for {dt} (UTC: {dt_utc})")
-        return swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, 
+        
+        logger.info(f"Calculating Julian Day for input {year}-{month}-{day} {hour}:{minute} (UTC: {dt_utc})")
+        
+        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, 
                          dt_utc.hour + dt_utc.minute / 60.0)
-    except Exception:
-        # Fallback: treat as UTC
-        return swe.julday(year, month, day, hour + minute / 60.0)
+        return jd
+    except Exception as e:
+        logger.error(f"Failed to calculate Julian Day: {e}")
+        # Fallback logic removed as it masks errors, better to fail explicitly if pytz/swe fails
+        raise EphemerisCalculationError(f"Julian Day calculation failed: {str(e)}")
 
 
 def calculate_planetary_positions(jd: float) -> Dict:
@@ -160,38 +128,51 @@ def calculate_planetary_positions(jd: float) -> Dict:
     
     Returns:
         Dictionary with planet positions
+        
+    Raises:
+        EphemerisCalculationError: If swisseph fails
     """
-    swe.set_sid_mode(swe.SIDM_LAHIRI)
-    chart_data = {}
-    
-    for planet_name, planet_id in PLANET_IDS.items():
-        result = swe.calc_ut(jd, planet_id, swe.FLG_SIDEREAL)
-        longitude = result[0][0]
+    try:
+        swe.set_sid_mode(DEFAULT_AYANAMSA)
+        chart_data = {}
         
-        sign, degree, sign_num = get_zodiac_sign(longitude)
+        logger.info("Calculating planetary positions...")
         
-        chart_data[planet_name] = {
-            'name': planet_name.capitalize(),
+        for planet_name, planet_id in PLANET_IDS.items():
+            try:
+                result = swe.calc_ut(jd, planet_id, swe.FLG_SIDEREAL)
+                longitude = result[0][0]
+                
+                sign, degree, sign_num = get_zodiac_sign(longitude)
+                
+                chart_data[planet_name] = {
+                    'name': planet_name.capitalize(),
+                    'sign': sign,
+                    'degree': round(degree, 2),
+                    'sign_num': sign_num,
+                    'abs_pos': round(longitude, 2)
+                }
+            except swe.Error as e:
+                logger.error(f"Error calculating {planet_name}: {e}")
+                raise EphemerisCalculationError(f"Failed to calculate position for {planet_name}: {e}")
+        
+        # Calculate Ketu (180° opposite to Rahu)
+        rahu_pos = chart_data['rahu']['abs_pos']
+        ketu_pos = (rahu_pos + 180) % 360
+        sign, degree, sign_num = get_zodiac_sign(ketu_pos)
+        
+        chart_data['ketu'] = {
+            'name': 'Ketu',
             'sign': sign,
             'degree': round(degree, 2),
             'sign_num': sign_num,
-            'abs_pos': round(longitude, 2)
+            'abs_pos': round(ketu_pos, 2)
         }
-    
-    # Calculate Ketu (180° opposite to Rahu)
-    rahu_pos = chart_data['rahu']['abs_pos']
-    ketu_pos = (rahu_pos + 180) % 360
-    sign, degree, sign_num = get_zodiac_sign(ketu_pos)
-    
-    chart_data['ketu'] = {
-        'name': 'Ketu',
-        'sign': sign,
-        'degree': round(degree, 2),
-        'sign_num': sign_num,
-        'abs_pos': round(ketu_pos, 2)
-    }
-    
-    return chart_data
+        
+        return chart_data
+    except Exception as e:
+        logger.critical(f"Critical error in planetary calculations: {e}")
+        raise EphemerisCalculationError(f"Planetary calculation failed: {str(e)}")
 
 
 def calculate_ascendant(jd: float, lat: float, lon: float) -> Dict:
@@ -206,25 +187,30 @@ def calculate_ascendant(jd: float, lat: float, lon: float) -> Dict:
     Returns:
         Dictionary with ascendant data
     """
-    swe.set_sid_mode(swe.SIDM_LAHIRI)
-    
-    # Get houses (we only need ascendant)
-    houses = swe.houses(jd, lat, lon, b'P')
-    asc_tropical = houses[0][0]
-    
-    # Convert to sidereal
-    ayanamsa = swe.get_ayanamsa_ut(jd)
-    asc_sidereal = (asc_tropical - ayanamsa) % 360
-    
-    sign, degree, sign_num = get_zodiac_sign(asc_sidereal)
-    
-    return {
-        'name': 'Ascendant',
-        'sign': sign,
-        'degree': round(degree, 2),
-        'sign_num': sign_num,
-        'abs_pos': round(asc_sidereal, 2)
-    }
+    try:
+        swe.set_sid_mode(DEFAULT_AYANAMSA)
+        
+        # Get houses (we only need ascendant)
+        # Handle potential error if lat/lon is invalid for swisseph
+        houses = swe.houses(jd, lat, lon, b'P')
+        asc_tropical = houses[0][0]
+        
+        # Convert to sidereal
+        ayanamsa = swe.get_ayanamsa_ut(jd)
+        asc_sidereal = (asc_tropical - ayanamsa) % 360
+        
+        sign, degree, sign_num = get_zodiac_sign(asc_sidereal)
+        
+        return {
+            'name': 'Ascendant',
+            'sign': sign,
+            'degree': round(degree, 2),
+            'sign_num': sign_num,
+            'abs_pos': round(asc_sidereal, 2)
+        }
+    except Exception as e:
+        logger.error(f"Error calculating Ascendant: {e}")
+        raise EphemerisCalculationError(f"Ascendant calculation failed: {str(e)}")
 
 
 # ============================================================================
@@ -265,179 +251,7 @@ def calculate_chara_karakas(chart_data: Dict) -> Dict[str, str]:
 # DIVISIONAL CHARTS (CORRECTED)
 # ============================================================================
 
-def calculate_d9_navamsa(chart_data: Dict) -> Dict:
-    """
-    Calculate D9 (Navamsa) chart using proper Vedic method.
-    
-    Rules:
-    - Each sign divided into 9 parts of 3°20' each
-    - Movable signs (Aries, Cancer, Libra, Capricorn): Start from same sign
-    - Fixed signs (Taurus, Leo, Scorpio, Aquarius): Start from 9th sign
-    - Dual signs (Gemini, Virgo, Sagittarius, Pisces): Start from 5th sign
-    
-    Args:
-        chart_data: Base chart data
-    
-    Returns:
-        D9 chart dictionary
-    """
-    d9_chart = {}
-    
-    # Movable, Fixed, Dual sign classifications
-    movable = [0, 3, 6, 9]    # Aries, Cancer, Libra, Capricorn
-    fixed = [1, 4, 7, 10]      # Taurus, Leo, Scorpio, Aquarius
-    dual = [2, 5, 8, 11]       # Gemini, Virgo, Sagittarius, Pisces
-    
-    for planet_name, planet_data in chart_data.items():
-        if planet_name in ['_metadata', 'd9_chart', 'd10_chart', 'd12_chart']:
-            continue
-        
-        if not isinstance(planet_data, dict) or 'sign_num' not in planet_data:
-            continue
-        
-        sign_num = planet_data['sign_num']
-        degree = planet_data['degree']
-        
-        # Determine which pada (1-9)
-        pada = int(degree / (30 / 9)) + 1
-        if pada > 9:
-            pada = 9
-        
-        # Determine starting sign for navamsa
-        if sign_num in movable:
-            start_sign = sign_num
-        elif sign_num in fixed:
-            start_sign = (sign_num + 8) % 12  # 9th sign
-        else:  # dual
-            start_sign = (sign_num + 4) % 12  # 5th sign
-        
-        # Calculate D9 sign
-        d9_sign_num = (start_sign + pada - 1) % 12
-        
-        # Calculate degree within D9 sign (proportional distribution)
-        degree_fraction = (degree % (30 / 9)) / (30 / 9)
-        d9_degree = degree_fraction * 30
-        d9_longitude = d9_sign_num * 30 + d9_degree
-        
-        sign, deg, _ = get_zodiac_sign(d9_longitude)
-        
-        d9_chart[planet_name] = {
-            'name': planet_data['name'],
-            'sign': sign,
-            'degree': round(deg, 2),
-            'sign_num': d9_sign_num,
-            'abs_pos': round(d9_longitude, 2)
-        }
-    
-    return d9_chart
-
-
-def calculate_d10_dasamsa(chart_data: Dict) -> Dict:
-    """
-    Calculate D10 (Dasamsa) chart for career analysis.
-    
-    Rules:
-    - Each sign divided into 10 parts of 3° each
-    - Odd signs: Start from same sign
-    - Even signs: Start from 9th sign from it
-    
-    Args:
-        chart_data: Base chart data
-    
-    Returns:
-        D10 chart dictionary
-    """
-    d10_chart = {}
-    
-    for planet_name, planet_data in chart_data.items():
-        if planet_name in ['_metadata', 'd9_chart', 'd10_chart', 'd12_chart']:
-            continue
-        
-        if not isinstance(planet_data, dict) or 'sign_num' not in planet_data:
-            continue
-        
-        sign_num = planet_data['sign_num']
-        degree = planet_data['degree']
-        
-        # Determine which division (1-10)
-        division = int(degree / 3) + 1
-        if division > 10:
-            division = 10
-        
-        # Odd signs (Aries, Gemini, Leo, etc.) = 0, 2, 4, 6, 8, 10
-        if sign_num % 2 == 0:  # Odd sign in zodiac sequence
-            start_sign = sign_num
-        else:  # Even sign
-            start_sign = (sign_num + 8) % 12
-        
-        d10_sign_num = (start_sign + division - 1) % 12
-        
-        degree_fraction = (degree % 3) / 3
-        d10_degree = degree_fraction * 30
-        d10_longitude = d10_sign_num * 30 + d10_degree
-        
-        sign, deg, _ = get_zodiac_sign(d10_longitude)
-        
-        d10_chart[planet_name] = {
-            'name': planet_data['name'],
-            'sign': sign,
-            'degree': round(deg, 2),
-            'sign_num': d10_sign_num,
-            'abs_pos': round(d10_longitude, 2)
-        }
-    
-    return d10_chart
-
-
-def calculate_d12_dwadasamsa(chart_data: Dict) -> Dict:
-    """
-    Calculate D12 (Dwadasamsa) chart for parents and ancestry.
-    
-    Rules:
-    - Each sign divided into 12 parts of 2°30' each
-    - Start counting from same sign
-    
-    Args:
-        chart_data: Base chart data
-    
-    Returns:
-        D12 chart dictionary
-    """
-    d12_chart = {}
-    
-    for planet_name, planet_data in chart_data.items():
-        if planet_name in ['_metadata', 'd9_chart', 'd10_chart', 'd12_chart']:
-            continue
-        
-        if not isinstance(planet_data, dict) or 'sign_num' not in planet_data:
-            continue
-        
-        sign_num = planet_data['sign_num']
-        degree = planet_data['degree']
-        
-        # Determine which division (1-12)
-        division = int(degree / 2.5) + 1
-        if division > 12:
-            division = 12
-        
-        # D12 starts from same sign
-        d12_sign_num = (sign_num + division - 1) % 12
-        
-        degree_fraction = (degree % 2.5) / 2.5
-        d12_degree = degree_fraction * 30
-        d12_longitude = d12_sign_num * 30 + d12_degree
-        
-        sign, deg, _ = get_zodiac_sign(d12_longitude)
-        
-        d12_chart[planet_name] = {
-            'name': planet_data['name'],
-            'sign': sign,
-            'degree': round(deg, 2),
-            'sign_num': d12_sign_num,
-            'abs_pos': round(d12_longitude, 2)
-        }
-    
-    return d12_chart
+# Divisional chart functions moved to backend/varga_charts.py
 
 
 # ============================================================================
@@ -549,20 +363,25 @@ def generate_vedic_chart(name: str, year: int, month: int, day: int,
         Complete chart dictionary with all calculations
     """
     try:
-        # Calculate Julian Day
+        logger.info(f"Generating chart for {name} ({city}, {year}-{month}-{day})")
+        
+        # 1. Validation Layer
+        validate_input(year, month, day, hour, minute, lat, lon)
+        
+        # 2. Calculate Julian Day
         jd = calculate_julian_day(year, month, day, hour, minute)
         
-        # Get planetary positions
+        # 3. Get planetary positions
         chart_data = calculate_planetary_positions(jd)
         
-        # Get ascendant
+        # 4. Get ascendant
         chart_data['ascendant'] = calculate_ascendant(jd, lat, lon)
         asc_sign_num = chart_data['ascendant']['sign_num']
         
-        # Calculate Chara Karakas
+        # 5. Calculate Chara Karakas
         karaka_map = calculate_chara_karakas(chart_data)
         
-        # Enhance each planet with additional data
+        # 6. Enhance each planet with additional data
         for planet_name, planet_data in chart_data.items():
             if planet_name == '_metadata':
                 continue
@@ -586,19 +405,29 @@ def generate_vedic_chart(name: str, year: int, month: int, day: int,
             )
             
             # Add Nakshatra
-            nak_dict, pada = get_nakshatra_by_longitude(planet_data['abs_pos'])
-            planet_data['nakshatra'] = {
-                'nakshatra': nak_dict['name'],
-                'lord': nak_dict['lord'],
-                'pada': pada
-            }
+            try:
+                nak_dict, pada = get_nakshatra_by_longitude(planet_data['abs_pos'])
+                planet_data['nakshatra'] = {
+                    'nakshatra': nak_dict['name'],
+                    'lord': nak_dict['lord'],
+                    'pada': pada,
+                    'symbol': nak_dict['symbol'],
+                    'element': nak_dict['element']
+                }
+            except Exception as e:
+                logger.warning(f"Failed to calculate nakshatra for {planet_name}: {e}")
+                planet_data['nakshatra'] = {'nakshatra': 'Unknown', 'lord': '-', 'pada': 0}
         
-        # Calculate divisional charts
-        chart_data['d9_chart'] = calculate_d9_navamsa(chart_data)
-        chart_data['d10_chart'] = calculate_d10_dasamsa(chart_data)
-        chart_data['d12_chart'] = calculate_d12_dwadasamsa(chart_data)
+        # 7. Calculate divisional charts (Vargas)
+        try:
+            varga_data = calculate_all_vargas(chart_data)
+            chart_data.update(varga_data)
+        except Exception as e:
+            logger.error(f"Varga calculation failed: {e}")
+            # Don't fail entire chart for vargas, just log
+            chart_data['error_varga'] = str(e)
         
-        # Add metadata
+        # 8. Add metadata
         chart_data['_metadata'] = {
             'name': name,
             'datetime': f"{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}",
@@ -610,7 +439,12 @@ def generate_vedic_chart(name: str, year: int, month: int, day: int,
             'house_system': 'Whole Sign'
         }
         
+        logger.info("Chart generation completed successfully.")
         return chart_data
         
+    except AstrologyError as e:
+        logger.error(f"Astrology Error: {e}")
+        return {"error": str(e), "type": e.__class__.__name__}
     except Exception as e:
-        return {"error": str(e)}
+        logger.critical(f"Unexpected error: {e}", exc_info=True)
+        return {"error": f"Internal Server Error: {str(e)}"}

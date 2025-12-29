@@ -5,19 +5,7 @@ import numpy as np
 import os
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-
-PLANET_NAMES = {
-    'sun': 'Sun',
-    'moon': 'Moon',
-    'mercury': 'Mercury',
-    'venus': 'Venus',
-    'mars': 'Mars',
-    'jupiter': 'Jupiter',
-    'saturn': 'Saturn',
-    'rahu': 'Rahu',
-    'ketu': 'Ketu',
-    'ascendant': 'Asc'
-}
+from typing import Dict, Any, List, Optional, Tuple
 
 # Rashi names (optional for display)
 RASHI_NAMES = [
@@ -27,83 +15,267 @@ RASHI_NAMES = [
 
 
 class NorthIndianChart:
-    """North Indian Chart - Industry Standard"""
+    """North Indian Chart - Industry Standard for Vedic Astrology"""
     
-    def __init__(self, chart_data, chart_type='D1', name=''):
+    # Constants
+    # Constants
+    CHART_SIZE = 10
+    OUTER_MARGIN = 1
+    INNER_SIZE = 8
+    LINE_WIDTH_OUTER = 3.0
+    LINE_WIDTH_INNER = 3.0
+    FIGURE_SIZE = (11, 11)
+    DPI = 200
+    
+    PLANET_NAMES = {
+        'sun': 'Sun',
+        'moon': 'Moon',
+        'mercury': 'Mercury',
+        'venus': 'Venus',
+        'mars': 'Mars',
+        'jupiter': 'Jupiter',
+        'saturn': 'Saturn',
+        'rahu': 'Rahu',
+        'ketu': 'Ketu',
+        'ascendant': 'Asc'
+    }
+
+    # Valid planets for Chara Karaka calculation (7 planets only)
+    CHARA_KARAKA_PLANETS = {'sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn'}
+    
+    # All planets for display (including Rahu/Ketu)
+    DISPLAY_PLANETS = {'sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn', 'rahu', 'ketu'}
+    
+    EXCLUDED_KEYS = {'ascendant', '_metadata'}
+    
+    def __init__(self, chart_data: Dict[str, Any], chart_type: str = 'D1', name: str = '') -> None:
+        """
+        Initialize North Indian Chart
+        
+        Args:
+            chart_data: Dictionary containing planetary positions with structure:
+                       {
+                           'planet_name': {'sign_num': int, 'degree': float},
+                           'ascendant': {'sign_num': int},
+                           'rahu': {'sign_num': int, 'degree': float},
+                           'ketu': {'sign_num': int, 'degree': float},
+                           ...
+                       }
+            chart_type: Chart type - 'D1' (Rashi), 'D9' (Navamsa), etc.
+            name: Optional name/title for the chart
+        """
+        if not isinstance(chart_data, dict):
+            raise ValueError("chart_data must be a dictionary")
+            
         self.chart_data = chart_data
-        self.chart_type = chart_type
+        self.chart_type = chart_type.upper()
         self.name = name
-        self.fig = None
-        self.ax = None
+        self.fig: Optional[plt.Figure] = None
+        self.ax: Optional[plt.Axes] = None
         
         # Get ascendant sign number (0-11)
-        if chart_type == 'D1':
-            self.ascendant_sign = chart_data.get('ascendant', {}).get('sign_num', 0)
-        else:
-            div_chart = chart_data.get(f'{chart_type.lower()}_chart', {})
-            self.ascendant_sign = div_chart.get('ascendant', {}).get('sign_num', 0)
+        ascendant_data = self._get_active_chart_data()
+        if 'ascendant' not in ascendant_data:
+            raise ValueError("Chart data must contain 'ascendant' key")
+            
+        self.ascendant_sign = ascendant_data.get('ascendant', {}).get('sign_num', 0)
+        self._validate_sign_num(self.ascendant_sign)
         
-        self.ak_planet = None
-        self.dk_planet = None
+        self.ak_planet: Optional[str] = None
+        self.dk_planet: Optional[str] = None
         self._calculate_ak_dk()
     
-    def _calculate_ak_dk(self):
-        """Calculate AK/DK based on degrees within sign"""
+    def _get_active_chart_data(self) -> Dict[str, Any]:
+        """Get the active chart data based on chart type"""
         if self.chart_type == 'D1':
-            data = self.chart_data
+            return self.chart_data
         else:
-            data = self.chart_data.get(f'{self.chart_type.lower()}_chart', {})
+            chart_key = f'{self.chart_type.lower()}_chart'
+            if chart_key not in self.chart_data:
+                raise ValueError(f"Chart data does not contain '{chart_key}'")
+            return self.chart_data[chart_key]
+    
+    @staticmethod
+    def _validate_sign_num(sign_num: int) -> None:
+        """Validate sign number is in valid range (0-11)"""
+        if not isinstance(sign_num, int) or not (0 <= sign_num <= 11):
+            raise ValueError(f"sign_num must be integer between 0-11, got {sign_num}")
+
+    def _calculate_ak_dk(self) -> None:
+        """
+        Calculate Atmakaraka (AK) and Darakaraka (DK) based on degrees within sign
         
-        planet_degrees = []
+        Chara Karakas in descending order of degrees:
+        1. AK (Atmakaraka) - Highest degree
+        2. AmK (Amatyakaraka)
+        3. BK (Bhratrukaraka)
+        4. MK (Matrukaraka)
+        5. PK (Putrakaraka)
+        6. GK (Gnatikaraka)
+        7. DK (Darakaraka) - Lowest degree
+        
+        Note: Rahu and Ketu are EXCLUDED from Chara Karaka calculations
+        """
+        data = self._get_active_chart_data()
+        
+        planet_degrees: List[Tuple[str, float]] = []
+        
         for planet_key, planet_data in data.items():
-            if planet_key in ['rahu', 'ketu', 'ascendant', '_metadata',
-                            'd9_chart', 'd10_chart', 'd12_chart']:
+            # Skip non-planet keys
+            if planet_key in self.EXCLUDED_KEYS:
                 continue
+            
+            # Skip divisional chart keys (d9_chart, d10_chart, etc.)
+            if planet_key.startswith('d') and '_chart' in planet_key:
+                continue
+            
             if not isinstance(planet_data, dict):
                 continue
             
-            degree = planet_data.get('degree', 0)
-            planet_degrees.append((planet_key, degree))
+            # Only include the 7 planets for Chara Karaka (exclude Rahu/Ketu)
+            if planet_key.lower() not in self.CHARA_KARAKA_PLANETS:
+                continue
+            
+            degree = planet_data.get('degree')
+            if degree is None:
+                raise ValueError(f"Planet '{planet_key}' missing 'degree' key")
+            
+            if not isinstance(degree, (int, float)) or not (0 <= degree < 30):
+                raise ValueError(f"Invalid degree {degree} for planet '{planet_key}' (must be 0-30)")
+            
+            planet_degrees.append((planet_key, float(degree)))
         
-        # Sort by degree within sign (descending)
-        planet_degrees.sort(key=lambda x: x[1], reverse=True)
+        if len(planet_degrees) < 7:
+            raise ValueError(
+                f"Need exactly 7 planets for AK/DK calculation, found {len(planet_degrees)}: "
+                f"{[p[0] for p in planet_degrees]}"
+            )
         
-        if len(planet_degrees) >= 1:
-            self.ak_planet = planet_degrees[0][0]
-        if len(planet_degrees) >= 7:
-            self.dk_planet = planet_degrees[6][0]
+        # Sort by degree within sign (descending), then by name for stability
+        planet_degrees.sort(key=lambda x: (-x[1], x[0]))
+        
+        # AK is highest degree (index 0)
+        self.ak_planet = planet_degrees[0][0]
+        
+        # DK is lowest degree (index 6, which is last of 7 planets)
+        self.dk_planet = planet_degrees[6][0]
+
+    def get_planets_for_display(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get all planets for chart rendering including Rahu and Ketu
+        
+        Returns:
+            Dictionary of planets to display with their data
+        """
+        data = self._get_active_chart_data()
+        display_planets = {}
+        
+        for planet_key, planet_data in data.items():
+            # Skip non-planet keys
+            if planet_key in self.EXCLUDED_KEYS:
+                continue
+            
+            # Skip divisional chart keys
+            if planet_key.startswith('d') and '_chart' in planet_key:
+                continue
+            
+            if not isinstance(planet_data, dict):
+                continue
+            
+            # Include all display planets (7 planets + Rahu + Ketu)
+            if planet_key.lower() in self.DISPLAY_PLANETS:
+                display_planets[planet_key] = planet_data
+        
+        return display_planets
     
-    def create_figure(self):
-        """Create figure with better resolution"""
-        self.fig, self.ax = plt.subplots(figsize=(11, 11), dpi=200)
-        self.ax.set_xlim(0, 10)
-        self.ax.set_ylim(0, 10)
+    def create_figure(self) -> None:
+        """Create figure with high resolution for clear rendering"""
+        self.fig, self.ax = plt.subplots(
+            figsize=self.FIGURE_SIZE, 
+            dpi=self.DPI
+        )
+        self.ax.set_xlim(0, self.CHART_SIZE)
+        self.ax.set_ylim(0, self.CHART_SIZE)
         self.ax.set_aspect('equal')
         self.ax.axis('off')
         self.fig.patch.set_facecolor('white')
         self.ax.set_facecolor('white')
     
-    def draw_structure(self):
-        """Draw chart structure"""
-        # Outer square - slightly thicker
-        outer = Rectangle((1, 1), 8, 8, fill=False,
-                         edgecolor='black', linewidth=3.0)
+    def draw_structure(self) -> None:
+        """Draw North Indian chart structure (diamond within square)"""
+        if self.ax is None:
+            raise RuntimeError("Must call create_figure() before draw_structure()")
+        
+        # Outer square
+        outer = Rectangle(
+            (self.OUTER_MARGIN, self.OUTER_MARGIN), 
+            self.INNER_SIZE, 
+            self.INNER_SIZE, 
+            fill=False,
+            edgecolor='black', 
+            linewidth=self.LINE_WIDTH_OUTER
+        )
         self.ax.add_patch(outer)
         
         # Diamond midpoints
-        left_mid = (1, 5)
-        top_mid = (5, 9)
-        right_mid = (9, 5)
-        bottom_mid = (5, 1)
+        center = self.OUTER_MARGIN + self.INNER_SIZE / 2
+        
+        left_mid = (self.OUTER_MARGIN, center)
+        top_mid = (center, self.OUTER_MARGIN + self.INNER_SIZE)
+        right_mid = (self.OUTER_MARGIN + self.INNER_SIZE, center)
+        bottom_mid = (center, self.OUTER_MARGIN)
         
         # Inner diamond
         diamond_x = [left_mid[0], top_mid[0], right_mid[0], bottom_mid[0], left_mid[0]]
         diamond_y = [left_mid[1], top_mid[1], right_mid[1], bottom_mid[1], left_mid[1]]
-        self.ax.plot(diamond_x, diamond_y, 'k-', linewidth=3.0)
+        self.ax.plot(diamond_x, diamond_y, 'k-', linewidth=self.LINE_WIDTH_INNER)
         
         # Diagonals
-        self.ax.plot([1, 9], [1, 9], 'k-', linewidth=3.0)
-        self.ax.plot([1, 9], [9, 1], 'k-', linewidth=3.0)
+        max_coord = self.OUTER_MARGIN + self.INNER_SIZE
+        self.ax.plot(
+            [self.OUTER_MARGIN, max_coord], 
+            [self.OUTER_MARGIN, max_coord], 
+            'k-', 
+            linewidth=self.LINE_WIDTH_INNER
+        )
+        self.ax.plot(
+            [self.OUTER_MARGIN, max_coord], 
+            [max_coord, self.OUTER_MARGIN], 
+            'k-', 
+            linewidth=self.LINE_WIDTH_INNER
+        )
+    
+    def get_ak_dk(self) -> Tuple[Optional[str], Optional[str]]:
+        """Return Atmakaraka and Darakaraka planets"""
+        return self.ak_planet, self.dk_planet
+    
+    def get_all_chara_karakas(self) -> List[Tuple[str, str]]:
+        """
+        Get all 7 Chara Karakas in order
+        
+        Returns:
+            List of (karaka_name, planet_name) tuples
+        """
+        data = self._get_active_chart_data()
+        planet_degrees: List[Tuple[str, float]] = []
+        
+        for planet_key, planet_data in data.items():
+            if planet_key in self.EXCLUDED_KEYS:
+                continue
+            if planet_key.startswith('d') and '_chart' in planet_key:
+                continue
+            if not isinstance(planet_data, dict):
+                continue
+            if planet_key.lower() not in self.CHARA_KARAKA_PLANETS:
+                continue
+            
+            degree = planet_data.get('degree', 0)
+            planet_degrees.append((planet_key, float(degree)))
+        
+        planet_degrees.sort(key=lambda x: (-x[1], x[0]))
+        
+        karaka_names = ['AK', 'AmK', 'BK', 'MK', 'PK', 'GK', 'DK']
+        return [(karaka_names[i], planet_degrees[i][0]) for i in range(min(7, len(planet_degrees)))]
     
     def get_house_data(self):
         """
@@ -114,73 +286,73 @@ class NorthIndianChart:
             # House 1: Top triangle (Ascendant position)
             1: {
                 'text_center': (5, 7.0),
-                'rashi_pos': (5, 8.5),      # Prominent top position
+                'rashi_pos': (5, 5.5),      # Ref (5,5), Up 0.5
                 'font_size': 10
             },
             # House 2: Top-left small triangle
             2: {
-                'text_center': (2.8, 8.0),
-                'rashi_pos': (1.7, 8.8),    # Top-left corner
+                'text_center': (2.5, 8.5),  # Outer
+                'rashi_pos': (3.0, 7.25),   # Ref (3,7), Up 0.25
                 'font_size': 9
             },
             # House 3: Left-upper
             3: {
-                'text_center': (1.7, 6.99),  # Moved down slightly from 6.5
-                'rashi_pos': (1.3, 8.20),    # Left upper
+                'text_center': (1.7, 7.0),  # Outer
+                'rashi_pos': (2.75, 7.0),   # Ref (3,7), Left 0.25
                 'font_size': 9
             },
             # House 4: Left big triangle
             4: {
-                'text_center': (2.2, 4.8),
-                'rashi_pos': (1.3, 5.0),    # Left center
+                'text_center': (3.0, 5.0),  # Symm H1
+                'rashi_pos': (4.5, 5.0),    # Ref (5,5), Left 0.5
                 'font_size': 10
             },
             # House 5: Left-lower
             5: {
-                'text_center': (1.8, 3.4),
-                'rashi_pos': (1.3, 2.5),    # Left lower
+                'text_center': (1.7, 3.5),  # Outer
+                'rashi_pos': (2.75, 3.0),   # Ref (3,3), Left 0.25
                 'font_size': 9
             },
             # House 6: Bottom-left small
             6: {
-                'text_center': (2.8, 2.2),
-                'rashi_pos': (1.7, 1.5),    # Bottom-left corner
+                'text_center': (3.0, 1.7),  # Outer
+                'rashi_pos': (3.0, 2.75),   # Ref (3,3), Down 0.25
                 'font_size': 9
             },
             # House 7: Bottom triangle
             7: {
-                'text_center': (5, 3.0),
-                'rashi_pos': (5, 1.5),      # Bottom center
+                'text_center': (5, 3.0),    # Symm H1
+                'rashi_pos': (5, 4.5),      # Ref (5,5), Down 0.5
                 'font_size': 10
             },
             # House 8: Bottom-right small
             8: {
-                'text_center': (7.2, 2.2),
-                'rashi_pos': (8.3, 1.5),    # Bottom-right corner
+                'text_center': (7.0, 1.5),  # Outer
+                'rashi_pos': (7.0, 2.75),   # Ref (7,3), Down 0.25
                 'font_size': 9
             },
             # House 9: Right-lower
             9: {
-                'text_center': (8.2, 3.1),
-                'rashi_pos': (8.7, 2.5),    # Right lower
+                'text_center': (8.1, 3.0),  # Outer
+                'rashi_pos': (7.25, 3.0),   # Ref (7,3), Right 0.25
                 'font_size': 9
             },
             # House 10: Right big triangle
             10: {
-                'text_center': (7.8, 5.0),
-                'rashi_pos': (8.7, 5.0),    # Right center
+                'text_center': (7.0, 5.0),  # Symm H1
+                'rashi_pos': (5.5, 5.0),    # Ref (5,5), Right 0.5
                 'font_size': 10
             },
             # House 11: Right-upper
             11: {
-                'text_center': (8.2, 6.7),
-                'rashi_pos': (8.7, 7.5),    # Right upper
+                'text_center': (8.2, 7.0),  # Outer
+                'rashi_pos': (7.25, 7.0),   # Ref (7,7), Right 0.25
                 'font_size': 9
             },
             # House 12: Top-right small
             12: {
-                'text_center': (7.2, 8.3),  # Moved up slightly from 7.8
-                'rashi_pos': (8.3, 8.5),    # Top-right corner
+                'text_center': (7.0, 8.08),  # Outer
+                'rashi_pos': (7.0, 7.25),   # Ref (7,7), Up 0.25
                 'font_size': 9
             },
         }
@@ -217,17 +389,12 @@ class NorthIndianChart:
     
     def get_planets_by_house(self):
         """Group planets by house"""
-        if self.chart_type == 'D1':
-            data = self.chart_data
-        else:
-            data = self.chart_data.get(f'{self.chart_type.lower()}_chart', {})
+        data = self.get_planets_for_display()
         
         planets_in_houses = {i: [] for i in range(1, 13)}
         
         for planet_key, planet_data in data.items():
-            if planet_key in ['_metadata', 'd9_chart', 'd10_chart', 'd12_chart']:
-                continue
-            if not isinstance(planet_data, dict):
+            if not isinstance(planet_data, dict) or 'sign_num' not in planet_data:
                 continue
             
             sign_num = planet_data.get('sign_num', 0)
@@ -236,7 +403,7 @@ class NorthIndianChart:
             # Calculate house number from sign
             house_num = ((sign_num - self.ascendant_sign) % 12) + 1
             
-            planet_name = PLANET_NAMES.get(planet_key, planet_key[:3])
+            planet_name = self.PLANET_NAMES.get(planet_key, planet_key[:3])
             
             prefix = ''
             if planet_key == self.ak_planet:
@@ -286,13 +453,22 @@ class NorthIndianChart:
                 
                 prefix = planet['prefix']
                 name = planet['name']
-                degree = planet['degree']
+                degree_val = planet['degree']
                 
-                text = f"{prefix}{name} {degree:.0f}°"
+                # Format as Degree:Minute (e.g., 10°30') - Standard for Vedic Astrology
+                d = int(degree_val)
+                m = int((degree_val - d) * 60)
+                text = f"{prefix}{name} {d}°{m:02d}'"
                 
-                # Truncate if too long
+                # Smart truncation
+                # If too long, try removing minutes first
                 if len(text) > 15:
-                    text = text[:14] + '°'
+                    text_no_min = f"{prefix}{name} {d}°"
+                    if len(text_no_min) <= 15:
+                        text = text_no_min
+                    else:
+                        # If still too long, truncate name
+                        text = text[:14] + '°'
                 
                 self.ax.text(
                     center_pos[0], y_pos, text,
@@ -400,35 +576,36 @@ class NakshatraTable:
         return output_path
 
 
+def generate_single_varga(chart_data, chart_type, person_name='', output_dir='./generated_charts'):
+    """Generate a single divisional chart on demand"""
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    try:
+        renderer = NorthIndianChart(chart_data, chart_type, person_name)
+        output_path = f"{output_dir}/{person_name}_{chart_type}_{timestamp}.png"
+        renderer.render(output_path)
+        return output_path
+    except Exception as e:
+        logger.error(f"Error generating {chart_type}: {e}")
+        return None
+
 def generate_all_charts(chart_data, person_name='', output_dir='./generated_charts'):
-    """Generate all divisional charts"""
+    """Generate primary divisional charts"""
     os.makedirs(output_dir, exist_ok=True)
     
     results = {}
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
+    # Primary charts to generate by default
     for chart_type in ['D1', 'D9', 'D10', 'D12']:
-        try:
-            renderer = NorthIndianChart(chart_data, chart_type, person_name)
-            output_path = f"{output_dir}/{person_name}_{chart_type}_{timestamp}.png"
-            renderer.render(output_path)
-            results[chart_type] = output_path
-            print(f"✓ {chart_type} chart generated: {output_path}")
-        except Exception as e:
-            print(f"✗ Error generating {chart_type}: {e}")
-            results[chart_type] = None
+        results[chart_type] = generate_single_varga(chart_data, chart_type, person_name, output_dir)
     
     # Generate nakshatra table
     try:
-        moon_naks = chart_data.get('moon', {}).get('nakshatra', {})
-        if moon_naks:
-            nak_renderer = NakshatraTable(moon_naks)
-            nak_path = f"{output_dir}/{person_name}_Nakshatra_{timestamp}.png"
-            nak_renderer.render(nak_path)
-            results['nakshatra'] = nak_path
-            print(f"✓ Nakshatra table generated: {nak_path}")
+        # Check if detailed_nakshatra_img exists in chart_data or handle separately
+        pass # The app.py handles detailed table now
     except Exception as e:
-        print(f"✗ Error generating nakshatra table: {e}")
-        results['nakshatra'] = None
+        logger.error(f"Error generating nakshatra table: {e}")
     
     return results

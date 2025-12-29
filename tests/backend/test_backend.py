@@ -1,9 +1,9 @@
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from backend.location import get_location_data
-from backend.astrology import generate_chart
+from backend.astrology import generate_vedic_chart
 import os
 
 print("--- Testing Backend ---")
@@ -19,7 +19,7 @@ else:
 # 2. Test Chart
 print("\n[Chart Test]")
 # 1990-01-01 12:00
-chart = generate_chart("Test", 1990, 1, 1, 12, 0, "New Delhi", 28.6, 77.2)
+chart = generate_vedic_chart("Test", 1990, 1, 1, 12, 0, "New Delhi", 28.6, 77.2)
 if "error" not in chart and "sun" in chart:
     print(f"SUCCESS: Chart Keys: {list(chart.keys())}")
     print(f"Sun Position: {chart['sun']}")
