@@ -11,7 +11,7 @@ pinned: false
 
 # AI Astrologer
 
-An AI-powered Vedic & KP Astrologer chatbot built with Python and Qwen-72B.
+An AI-powered Vedic & KP Astrologer chatbot built with Python and Google Gemini 3.0 Flash.
 
 ## Features
 - **Vedic AI Chat**: Traditional Vedic analysis with 15+ quick questions.
@@ -26,9 +26,9 @@ An AI-powered Vedic & KP Astrologer chatbot built with Python and Qwen-72B.
    ```bash
    pip install -r requirements.txt
    ```
-3. Set your Hugging Face Inference API token in a `.env` file or environment variables:
+3. Set your Google Gemini API key in a `.env` file or environment variables:
    ```
-   KEY=your_hf_token_here
+   GEMINI_API_KEY=your_gemini_api_key_here
    ```
 4. Run the application:
    ```bash
