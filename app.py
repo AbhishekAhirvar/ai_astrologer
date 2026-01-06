@@ -8,6 +8,7 @@ from backend.location import get_location_data
 from backend.astrology import generate_vedic_chart
 from backend.ai import get_astrology_prediction
 from backend.chart_renderer import generate_all_charts, generate_single_varga
+from backend.table_renderer import create_planetary_table_image, create_detailed_nakshatra_table
 from backend.logger import logger
 import time
 from collections import defaultdict
@@ -43,194 +44,7 @@ def cleanup_old_charts(directory, max_age_seconds=3600):
         except Exception as e:
             logger.error(f"Error deleting {file_path}: {e}")
 
-def create_planetary_table_image(chart, output_path):
-    """Create planetary positions table as PNG"""
-    
-    width = 900
-    height = 650
-    img = Image.new('RGB', (width, height), 'white')
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
-        header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
-        text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
-    except:
-        title_font = ImageFont.load_default()
-        header_font = ImageFont.load_default()
-        text_font = ImageFont.load_default()
-    
-    y = 30
-    
-    # Title
-    draw.text((width//2, y), "PLANETARY POSITIONS", fill='black', font=title_font, anchor="mt")
-    y += 60
-    
-    # Header
-    draw.rectangle([30, y, width-30, y+40], outline='black', fill='#4A90E2', width=2)
-    headers = ['Planet', 'Sign', 'Degree', 'Nakshatra', 'Lord']
-    x_positions = [50, 200, 350, 480, 700]
-    
-    for i, header in enumerate(headers):
-        draw.text((x_positions[i], y+12), header, fill='white', font=header_font)
-    
-    y += 40
-    
-    planets = [
-        ('Sun', 'sun'),
-        ('Moon', 'moon'),
-        ('Ascendant', 'ascendant'),
-        ('Mercury', 'mercury'),
-        ('Venus', 'venus'),
-        ('Mars', 'mars'),
-        ('Jupiter', 'jupiter'),
-        ('Saturn', 'saturn'),
-        ('Rahu', 'rahu'),
-        ('Ketu', 'ketu'),
-    ]
-    
-    for idx, (planet_display, planet_key) in enumerate(planets):
-        planet_data = chart.get(planet_key, {})
-        nakshatra_data = planet_data.get('nakshatra', {})
-        
-        if idx % 2 == 0:
-            draw.rectangle([30, y, width-30, y+40], fill='#f0f0f0')
-        
-        draw.rectangle([30, y, width-30, y+40], outline='#cccccc', width=1)
-        
-        draw.text((x_positions[0], y+12), planet_display, fill='black', font=text_font)
-        draw.text((x_positions[1], y+12), planet_data.get('sign', 'N/A'), fill='black', font=text_font)
-        deg = planet_data.get('degree', 0)
-        minutes = int((deg % 1) * 60)
-        seconds = int(((deg % 1) * 60 % 1) * 60)
-        deg_str = f"{int(deg):02d}°{minutes:02d}'" # Shortened DMS for this table as space is tight, or just use same format?
-        # User wants consistency.
-        # Planetary Table Space: column 3 is at x=350. Next is 480. 130px width.
-        # "28°59'59"" is approx 10 chars. Sans font 14px. Should fit.
-        deg_str = f"{int(deg):02d}°{minutes:02d}'{seconds:02d}\""
-        
-        draw.text((x_positions[0], y+12), planet_display, fill='black', font=text_font)
-        draw.text((x_positions[1], y+12), planet_data.get('sign', 'N/A'), fill='black', font=text_font)
-        draw.text((x_positions[2], y+12), deg_str, fill='black', font=text_font)
-        draw.text((x_positions[3], y+12), nakshatra_data.get('nakshatra', 'N/A'), fill='black', font=text_font)
-        draw.text((x_positions[4], y+12), nakshatra_data.get('lord', 'N/A'), fill='black', font=text_font)
-        
-        y += 40
-    
-    img.save(output_path)
-    return output_path
-
-def create_detailed_nakshatra_table(chart, output_path):
-    """Create detailed nakshatra analysis table like reference image"""
-    
-    width = 1200
-    height = 800
-    img = Image.new('RGB', (width, height), 'white') # Light theme
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
-        header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
-        text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 13)
-        small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)
-    except:
-        title_font = ImageFont.load_default()
-        header_font = ImageFont.load_default()
-        text_font = ImageFont.load_default()
-        small_font = ImageFont.load_default()
-    
-    y = 0
-    
-    # Title Line
-    draw.rectangle([0, 0, width, 50], fill='#4A90E2')
-    draw.text((20, 25), "Nakshatra-based Analysis", fill='#ffffff', font=title_font, anchor="lm")
-    
-    y = 60
-    
-    # Table header
-    headers = ['Planet', 'Karaka', 'Degrees', 'Rasi', 'Navamsa', 'Nakshatra (Pada, Lord)', 'Relationship', 'House', 'Lord']
-    x_positions = [20, 140, 230, 340, 460, 580, 820, 960, 1060]
-    
-    # Header background
-    draw.rectangle([0, y, width, y+40], fill='#4A90E2')
-    
-    # Make header text white and bold
-    for i, header in enumerate(headers):
-        draw.text((x_positions[i], y+20), header, fill='white', font=header_font, anchor="lm")
-    
-    y += 50
-    
-    planets_order = [
-        ('Ascendant', 'ascendant'),
-        ('Sun', 'sun'),
-        ('Moon', 'moon'),
-        ('Mars', 'mars'),
-        ('Mercury', 'mercury'),
-        ('Jupiter', 'jupiter'),
-        ('Venus', 'venus'),
-        ('Saturn', 'saturn'),
-        ('Rahu', 'rahu'),
-        ('Ketu', 'ketu'),
-    ]
-    
-    for idx, (display_name, key) in enumerate(planets_order):
-        planet_data = chart.get(key, {})
-        if not planet_data: continue
-        
-        # Consistent Styling with Planetary Table
-        # Row background (alternating is fine, but lets match the "Card" look if requested, 
-        # but user said "consistent". The Planetary table has a specific outline style.
-        # Let's try to mimic that outline style here too, but this table is wider.
-        
-        # Planetary table logic:
-        # if idx % 2 == 0: draw.rectangle(..., fill='#f0f0f0')
-        # draw.rectangle(..., outline='#cccccc', width=1)
-        
-        row_height = 50
-        
-        if idx % 2 == 0:
-            draw.rectangle([10, y, width-10, y+row_height], fill='#f0f0f0')
-            
-        draw.rectangle([10, y, width-10, y+row_height], outline='#cccccc', width=1)
-        
-        # Name
-        draw.text((x_positions[0], y+25), display_name, fill='black', font=text_font, anchor="lm")
-        
-        # Karaka
-        draw.text((x_positions[1], y+25), planet_data.get('karaka', '-'), fill='black', font=text_font, anchor="lm")
-        
-        # Degrees
-        deg = planet_data.get('degree', 0)
-        minutes = int((deg % 1) * 60)
-        seconds = int(((deg % 1) * 60 % 1) * 60)
-        deg_str = f"{int(deg):02d}°{minutes:02d}'{seconds:02d}\""
-        draw.text((x_positions[2], y+25), deg_str, fill='black', font=text_font, anchor="lm")
-        
-        # Rasi
-        draw.text((x_positions[3], y+25), planet_data.get('sign', 'N/A'), fill='black', font=text_font, anchor="lm")
-        
-        # Navamsa (D9)
-        d9_data = chart.get('d9_chart', {}).get(key, {})
-        draw.text((x_positions[4], y+25), d9_data.get('sign', 'N/A'), fill='black', font=text_font, anchor="lm")
-        
-        # Nakshatra (Pada, Lord)
-        nak_info = planet_data.get('nakshatra', {})
-        nak_text = f"{nak_info.get('nakshatra', 'N/A')} ({nak_info.get('pada', 'N/A')}, {nak_info.get('lord', 'N/A')[:2]})"
-        draw.text((x_positions[5], y+25), nak_text, fill='black', font=text_font, anchor="lm")
-        
-        # Relationship
-        draw.text((x_positions[6], y+25), planet_data.get('relationship', 'Neutral'), fill='black', font=text_font, anchor="lm")
-        
-        # House
-        draw.text((x_positions[7], y+25), str(planet_data.get('house', '-')), fill='black', font=text_font, anchor="lm")
-        
-        # Lord
-        draw.text((x_positions[8], y+25), planet_data.get('rules_houses', '-'), fill='black', font=text_font, anchor="lm")
-        
-        y += row_height
-    
-    img.save(output_path)
-    return output_path
+# Table generation logic moved to backend.table_renderer
 
 def generate_report(name, gender, dob_date, dob_time, place_name):
     """Generate birth chart with all tables"""
@@ -318,17 +132,29 @@ def generate_report(name, gender, dob_date, dob_time, place_name):
     if '_metadata' in chart:
         chart['_metadata']['gender'] = gender
     
-    if "error" in chart:
-        logger.error(f"Vedic chart generation error: {chart['error']}")
-        return f"❌ Error: {chart['error']}", None, None, None, None, None, None, None
+    if "error" in chart and (isinstance(chart, dict) or getattr(chart, 'error', None)):
+        if isinstance(chart, dict):
+            err_msg = chart['error']
+        else:
+            err_msg = chart.error
+        logger.error(f"Vedic chart generation error: {err_msg}")
+        return f"❌ Error: {err_msg}", None, None, None, None, None, None, None
 
     try:
         chart_images = generate_all_charts(chart, person_name=name, output_dir=CHARTS_DIR)
     except Exception as e:
         return f"⚠️ Error: {str(e)}", None, None, None, None, None, None, None
 
-    metadata = chart.get('_metadata', {})
-    moon_naks = chart['moon'].get('nakshatra', {})
+    # Handle Pydantic or Dict for metadata access
+    if hasattr(chart, 'model_dump') or hasattr(chart, 'metadata'):
+        metadata = chart.metadata.model_dump() if hasattr(chart.metadata, 'model_dump') else vars(chart.metadata)
+        moon_data = chart.planets.get('moon', {}) if hasattr(chart, 'planets') else {}
+        if hasattr(moon_data, 'model_dump'): moon_data = moon_data.model_dump()
+        moon_naks = moon_data.get('nakshatra', {})
+        if hasattr(moon_naks, 'model_dump'): moon_naks = moon_naks.model_dump()
+    else:
+        metadata = chart.get('_metadata', {})
+        moon_naks = chart['moon'].get('nakshatra', {})
     
     summary_text = f"""
 ## 🌟 Birth Chart: {name}
@@ -342,14 +168,16 @@ def generate_report(name, gender, dob_date, dob_time, place_name):
 
 ### 🌙 PRIMARY MOON NAKSHATRA
 
-**Nakshatra:** {moon_naks.get('nakshatra', 'N/A')}  
-**Lord:** {moon_naks.get('lord', 'N/A')}  
-**Pada:** {moon_naks.get('pada', 'N/A')}/4  
-**Symbol:** {moon_naks.get('symbol', 'N/A')}  
+**Nakshatra:** {moon_naks.get('nakshatra', 'N/A')}
+**Lord:** {moon_naks.get('lord', 'N/A')}
+**Pada:** {moon_naks.get('pada', 'N/A')}/4
+**Symbol:** {moon_naks.get('symbol', 'N/A')}
 **Element:** {moon_naks.get('element', 'N/A')}
 
 ✅ **Charts generated! Check tabs below.**
 """
+
+
     
     # Create tables
     timestamp = int(time.time())
@@ -381,7 +209,13 @@ def update_varga_display(chart_data, varga_type):
         # Extract D number from string like "D9 Navamsa" -> "D9"
         chart_code = varga_type.split(' ')[0]
     
-    name = chart_data.get('_metadata', {}).get('name', 'User')
+    
+    # Handle object or dict
+    if hasattr(chart_data, 'metadata'):
+        name = chart_data.metadata.name or 'User'
+    else:
+        name = chart_data.get('_metadata', {}).get('name', 'User')
+        
     img_path = generate_single_varga(chart_data, chart_code, person_name=name, output_dir=CHARTS_DIR)
     return img_path
 
@@ -395,6 +229,7 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
     <div style='text-align: center; padding: 20px;'>
         <h1>🌟 Vedic Astrology AI</h1>
         <p>Birth Charts • Nakshatras • Divisional Charts • AI Predictions</p>
+        <p style='font-size: 12px; color: #666;'>Powered by Google Gemini 3 Flash Preview</p>
     </div>
     """)
     
@@ -523,14 +358,37 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
             def parse_ai_response(response):
                 """Extract text and suggestions from AI response using || separator"""
+                # Handle error responses
+                if not response or isinstance(response, tuple):
+                    return str(response), []
+                
                 if "[SUGGESTIONS]" in response:
-                    parts = response.split("[SUGGESTIONS]")
+                    parts = response.split("[SUGGESTIONS]", 1)  # Split only once
                     text = parts[0].strip()
+                    
+                    # Remove any trailing punctuation from main text that might have leaked
+                    text = text.rstrip(" .?!-")
+                    
                     # Split by || for robust separation
                     sug_raw = parts[1].split("||")
-                    suggestions = [s.strip(" -.?*\"") + "?" for s in sug_raw if s.strip()]
-                    return text, suggestions[:3]
-                return response, []
+                    suggestions = []
+                    
+                    for s in sug_raw:
+                        # Clean each suggestion more carefully
+                        cleaned = s.strip()
+                        # Remove leading/trailing special chars but preserve internal ones
+                        cleaned = cleaned.strip(" -.?!*\"'")
+                        
+                        if cleaned:  # Only add non-empty suggestions
+                            # Ensure it ends with a question mark
+                            if not cleaned.endswith('?'):
+                                cleaned += '?'
+                            suggestions.append(cleaned)
+                    
+                    return text, suggestions[:3]  # Return max 3 suggestions
+                
+                # No suggestions found
+                return response.strip(), []
 
             def handle_chat_input(user_input, history, chart_data, is_kp=False):
                 """Unified chat entry point for Gradio 6.0"""
@@ -549,8 +407,8 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                 # Append user message
                 history.append({"role": "user", "content": user_input})
                 
-                # Get AI response
-                response = get_astrology_prediction(chart_data, user_input, is_kp_mode=is_kp)
+                # Get AI response (Inject API KEY)
+                response = get_astrology_prediction(chart_data, user_input, api_key=os.getenv("GEMINI_API_KEY"), is_kp_mode=is_kp)
                 text, suggestions = parse_ai_response(response)
                 
                 # Append assistant response
@@ -621,4 +479,4 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(share=True, server_name="0.0.0.0", server_port=7860)
+    demo.launch(share=False, server_name="0.0.0.0", server_port=7860)

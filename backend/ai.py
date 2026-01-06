@@ -1,12 +1,16 @@
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from backend.logger import logger
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Configure Google Gemini
-GEMINI_MODEL = "gemini-3.0-flash"
+GEMINI_MODEL = "gemini-3-flash-preview"
+
+# Log model info on startup
+logger.info(f"🤖 AI Module initialized with Google Gemini model: {GEMINI_MODEL}")
 
 
 def get_astrology_prediction(chart_data, user_query, api_key, is_kp_mode=False):
@@ -95,8 +99,8 @@ def get_astrology_prediction(chart_data, user_query, api_key, is_kp_mode=False):
             return response.text.strip()
         else:
             logger.error("Empty response from Gemini API")
-            return "⚠️ Error: Empty response from AI", []
+            return "⚠️ Error: Empty response from AI"
             
     except Exception as e:
         logger.exception(f"Exception during AI prediction: {str(e)}")
-        return f"⚠️ Connection Error: {str(e)}", []
+        return f"⚠️ Connection Error: {str(e)}"
