@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Astrologer - Architecture</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+    <style>
+        body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        @media (max-width: 767px) {
+            body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body class="markdown-body">
+    <h1>AI Astrologer - System Architecture</h1>
+
+<h2>1. System Overview</h2>
+<p>The <strong>AI Astrologer</strong> is a Python-based web application that combines precise Vedic astrology calculations with Generative AI interpretation. It generates industry-standard North Indian charts, detailed planetary tables, and conversational insights.</p>
+
+<h3>High-Level Data Flow</h3>
+<pre class="mermaid">
+graph TD
+    User([User Input]) -->|Name, DOB, Time, Location| UI[Frontend (Gradio)]
+    
+    subgraph "Core Engine"
+        UI -->|Input Data| Controller[app.py Logic]
+        Controller -->|Calc Request| Astro[Astrology Engine<br>(backend/astrology.py)]
+        Astro -->|SwissEph| Lib[Swiss Ephemeris Lib]
+        Lib -->|Planetary Positions| Astro
+        Astro -->|Chart Data JSON| Controller
+    end
+
+    subgraph "Visualization Layer"
+        Controller -->|Chart Data| Renderer[Chart Renderer<br>(backend/chart_renderer.py)]
+        Renderer -->|Matplotlib| Images[Chart Images (PNG)]
+        Images -->|Display| UI
+    end
+
+    subgraph "Intelligence Layer"
+        User -->|Chat Query| UI
+        UI -->|Query + Chart Ctx| AI[AI Service<br>(backend/ai.py)]
+        AI -->|API Call| HF[Hugging Face Inference API]
+        HF -->|Prediction| AI
+        AI -->|Response| UI
+    end
+</pre>
+
+<h2>2. Component Architecture</h2>
+
+<h3>A. Frontend / Controller (<code>app.py</code>)</h3>
+<ul>
+    <li><strong>Technology</strong>: <a href="https://www.gradio.app/">Gradio</a> with customized CSS/Theme.</li>
+    <li><strong>Role</strong>: Handles user input validation, orchestrates backend calls, manages session state (chart data), and displays results (Images + Chatbot).</li>
+    <li><strong>Key Features</strong>:
+        <ul>
+            <li>Responsive Tabbed Layout (Birth Chart, Planetary Info, D10, etc.).</li>
+            <li>"Grounding" logic to keep AI chat focused on astrology.</li>
+        </ul>
+    </li>
+</ul>
+
+<h3>B. Astrology Logic (<code>backend/astrology.py</code>)</h3>
+<ul>
+    <li><strong>Technology</strong>: <a href="https://pypi.org/project/pyswisseph/">pyswisseph</a> (Python bindings for Swiss Ephemeris).</li>
+    <li><strong>Role</strong>: Performs high-precision astronomical calculations.</li>
+    <li><strong>Key Calculations</strong>:
+        <ul>
+            <li>Exact planetary degrees (Sidereal Zodiac / Lahiri Ayanamsa).</li>
+            <li>House division (Whole Sign system).</li>
+            <li>Divisional Charts (Vargas: D9, D10, etc.).</li>
+            <li>Chara Karakas (Jaimini system).</li>
+        </ul>
+    </li>
+</ul>
+
+<h3>C. Visualization Engine (<code>backend/chart_renderer.py</code>)</h3>
+<ul>
+    <li><strong>Technology</strong>: <code>matplotlib</code> + <code>PIL</code> (Python Imaging Library).</li>
+    <li><strong>Role</strong>: Generates static PNG images of charts.</li>
+    <li><strong>Design</strong>:
+        <ul>
+            <li><strong>North Indian Style</strong>: Diamond chart layout.</li>
+            <li><strong>Custom Logic</strong>: Algorithms to prevent text overlap (Rashi numbers vs Planets).</li>
+            <li><strong>Output</strong>: High-DPI images saved to <code>generated_charts/</code>.</li>
+        </ul>
+    </li>
+</ul>
+
+<h3>D. AI Intelligence (<code>backend/ai.py</code>)</h3>
+<ul>
+    <li><strong>Technology</strong>: Hugging Face Inference API (<code>requests</code> library).</li>
+    <li><strong>Model</strong>: <code>Qwen/Qwen2.5-72B-Instruct</code> (or similar LLM).</li>
+    <li><strong>Role</strong>: Interprets the JSON chart data into human-readable advice.</li>
+    <li><strong>Strategy</strong>:
+        <ul>
+            <li><strong>Context Injection</strong>: Sends planetary positions + User Query + System Prompt.</li>
+            <li><strong>Grounding</strong>: Prompt engineering to strictly refuse non-astrology questions (e.g., cooking, coding).</li>
+        </ul>
+    </li>
+</ul>
+
+<hr>
+
+<h2>3. Architecture Trade-offs & Comparisons</h2>
+
+<h3>🖥️ Frontend: Gradio vs. React/Next.js</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Feature</th>
+            <th>Current: Gradio</th>
+            <th>Alternative: React + FastAPI</th>
+            <th>Trade-off Analysis</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Dev Speed</strong></td>
+            <td>🚀 <strong>Very Fast</strong></td>
+            <td>🐢 Slower (Boilerplate)</td>
+            <td>Gradio allows rapid prototyping in pure Python. React requires separate frontend/backend codebases.</td>
+        </tr>
+        <tr>
+            <td><strong>Customization</strong></td>
+            <td>⚠️ Limited</td>
+            <td>🎨 <strong>Unlimited</strong></td>
+            <td>Gradio is rigid with layout. React allows pixel-perfect custom designs and interactive JS animations.</td>
+        </tr>
+        <tr>
+            <td><strong>Interactivity</strong></td>
+            <td>🔄 Refresh Required</td>
+            <td>⚡ <strong>Real-time</strong></td>
+            <td>React allows dynamic D3.js interactive charts. Gradio renders static images (server-side).</td>
+        </tr>
+        <tr>
+            <td><strong>Maintenance</strong></td>
+            <td>✅ <strong>Low</strong></td>
+            <td>❌ High</td>
+            <td>One Python file vs full stack ecosystem.</td>
+        </tr>
+    </tbody>
+</table>
+<p><strong>Verdict</strong>: Gradio is the correct choice for a data-science/algorithm-heavy MVP where accuracy > fancy UI animations.</p>
+
+<h3>🌌 Logic: Swiss Ephemeris vs. APIs</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Feature</th>
+            <th>Current: SwissEph (Local Lib)</th>
+            <th>Alternative: 3rd Party API (AstrologyAPI)</th>
+            <th>Trade-off Analysis</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Cost</strong></td>
+            <td>💸 <strong>Free</strong></td>
+            <td>💰 Expensive ($$/req)</td>
+            <td>SwissEph is open source (GPL). APIs charge per chart.</td>
+        </tr>
+        <tr>
+            <td><strong>Latency</strong></td>
+            <td>⚡ <strong>Microseconds</strong></td>
+            <td>🐢 Network Latency</td>
+            <td>Local calculation is instant. APIs require HTTP round-trips.</td>
+        </tr>
+        <tr>
+            <td><strong>Reliability</strong></td>
+            <td>✅ <strong>100% Offline</strong></td>
+            <td>⚠️ Internet Dependent</td>
+            <td>No downtime risk with local libs.</td>
+        </tr>
+        <tr>
+            <td><strong>Accuracy</strong></td>
+            <td>🎯 <strong>NASA Std</strong></td>
+            <td>❓ Varies</td>
+            <td>SwissEph is the gold standard used by professionals.</td>
+        </tr>
+    </tbody>
+</table>
+<p><strong>Verdict</strong>: Local SwissEph is superior in every technical aspect (speed, cost, control) compared to using a SaaS API.</p>
+
+<h3>🧠 AI: HF Inference API vs. Local LLM (Ollama)</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Feature</th>
+            <th>Current: HF Inference API</th>
+            <th>Alternative: Local LLM (Ollama)</th>
+            <th>Trade-off Analysis</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Hardware</strong></td>
+            <td>☁️ <strong>Cloud (No GPU req)</strong></td>
+            <td>💻 Requires GPU/RAM</td>
+            <td>HF runs on their servers. Local LLM requires user to have strong hardware (RAM/VRAM).</td>
+        </tr>
+        <tr>
+            <td><strong>Model Size</strong></td>
+            <td>🧠 <strong>72B+ Models</strong></td>
+            <td>🧠 Small (7B/8B)</td>
+            <td>Can access massive models via API. Local is limited by consumer VRAM.</td>
+        </tr>
+        <tr>
+            <td><strong>Privacy</strong></td>
+            <td>⚠️ Data sent to cloud</td>
+            <td>🔒 <strong>100% Private</strong></td>
+            <td>Local is better if privacy is paramount, but HF is generally secure.</td>
+        </tr>
+        <tr>
+            <td><strong>Cost</strong></td>
+            <td>💸 Free/Cheap</td>
+            <td>💸 Hardware Cost</td>
+            <td>HF Free tier is limited but serviceable.</td>
+        </tr>
+    </tbody>
+</table>
+<p><strong>Verdict</strong>: For a web-hosted demo, Cloud API is essential. Local LLM would make deployment impossible for users without GPUs.</p>
+
+<h3>📊 Visualization: Matplotlib vs. D3.js</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Feature</th>
+            <th>Current: Matplotlib (Backend)</th>
+            <th>Alternative: D3.js / Canvas (Frontend)</th>
+            <th>Trade-off Analysis</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Implementation</strong></td>
+            <td>🐍 <strong>Python Native</strong></td>
+            <td>🕸️ Javascript Complex</td>
+            <td>Keeps all logic in Python. D3.js requires complex JS calculations for coordinates.</td>
+        </tr>
+        <tr>
+            <td><strong>Quality</strong></td>
+            <td>🖼️ Static Image</td>
+            <td>🖱️ <strong>Interactive</strong></td>
+            <td>D3 allows hovering to see degrees, zooming, etc. Matplotlib is just a PNG.</td>
+        </tr>
+        <tr>
+            <td><strong>Compatibility</strong></td>
+            <td>✅ Universal (Image)</td>
+            <td>⚠️ Browser Dependent</td>
+            <td>Images work everywhere (emails, reports). JS charts need a browser engine.</td>
+        </tr>
+    </tbody>
+</table>
+<p><strong>Verdict</strong>: Matplotlib aligns with the Python-centric architecture. Moving to D3.js would require rewriting the rendering engine in JavaScript.</p>
+</body>
+</html>

@@ -1,10 +1,24 @@
 from typing import Dict
+import math
 from backend.logger import logger
 
 ZODIAC_SIGNS = [
     "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
     "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
 ]
+
+# Standard Vedic Varga Divisors
+STANDARD_DIVISORS = {1, 2, 3, 4, 7, 9, 10, 12, 16, 20, 24, 27, 30, 40, 45, 60}
+
+# Sign Classifications
+MOVABLE_SIGNS = {0, 3, 6, 9}
+FIXED_SIGNS = {1, 4, 7, 10}
+DUAL_SIGNS = {2, 5, 8, 11}
+
+# Calculation Constants
+DEGREE_PRECISION = 4
+NINTH_SIGN_OFFSET = 8  # 9th sign is 8 steps ahead
+FIFTH_SIGN_OFFSET = 4  # 5th sign is 4 steps ahead
 
 def get_varga_sign(longitude: float) -> int:
     """Helper to get sign number from longitude (0-11)"""
@@ -26,19 +40,20 @@ def calculate_varga(chart_data: Dict, divisor: int, start_rule: str) -> Dict:
         >>> chart = {'sun': {'name': 'Sun', 'sign_num': 0, 'degree': 10.5}}
         >>> d9 = calculate_varga(chart, 9, 'movable_fixed_dual')
     """
+    if divisor not in STANDARD_DIVISORS:
+        logger.warning(f"Using non-standard Vedic divisor: {divisor}")
+
     if divisor <= 0 or divisor > 60:
         logger.error(f"Invalid divisor: {divisor}")
         return {}
     
-    VALID_RULES = {'same', 'odd_even', 'movable_fixed_dual'}
+    VALID_RULES = {'same', 'odd_even', 'movable_fixed_dual', 'odd_even_d7'}
     if start_rule not in VALID_RULES:
         logger.error(f"Invalid start_rule: {start_rule}")
         return {}
     
     varga_chart = {}
     div_size = 30.0 / divisor
-    NINTH_OFFSET = 8
-    FIFTH_OFFSET = 4
     
     for planet_name, planet_data in chart_data.items():
         if planet_name == '_metadata' or not isinstance(planet_data, dict):
@@ -50,41 +65,55 @@ def calculate_varga(chart_data: Dict, divisor: int, start_rule: str) -> Dict:
         sign_num = planet_data['sign_num']
         degree = planet_data['degree']
         
-        # Validate inputs
-        if not (0 <= degree <= 30):
-            logger.warning(f"{planet_name}: degree {degree} out of expected [0, 30] range")
-            degree = max(0, min(degree, 29.9999))
+        # 1. DEGREE VALIDATION BOUNDARY
+        # 30.0 should be treated as 0.0 of next sign, checking strictly < 30
+        if not (0 <= degree < 30):
+            logger.warning(f"{planet_name}: degree {degree} out of expected [0, 30) range")
+            degree = max(0.0, min(degree, 29.9999))
             
         if not (0 <= sign_num < 12):
             logger.error(f"{planet_name}: sign_num {sign_num} out of range [0, 12)")
             continue
         
-        # Calculate division (0-indexed internally)
-        division_index = int(degree / div_size)
+        # 2. DIVISION INDEX CALCULATION
+        # Use math.floor for explicit integer conversion
+        division_index = math.floor(degree / div_size)
         division_index = min(division_index, divisor - 1)  # Handle boundary
-        division = division_index + 1
         
         # Calculate starting sign based on rule
         if start_rule == 'same':
             start_sign = sign_num
         elif start_rule == 'odd_even':
-            # Odd: Aries(0), Gemini(2)... (Vedic counting 1, 3...)
-            # Note: sign_num % 2 == 0 corresponds to Odd signs (1, 3, 5, 7, 9, 11)
-            start_sign = sign_num if (sign_num % 2 == 0) else (sign_num + NINTH_OFFSET) % 12
+            # 6. ODD_EVEN RULE COMMENT CLARITY
+            # Vedic odd signs (1,3,5...) have even indices (0,2,4...)
+            # Vedic even signs (2,4,6...) have odd indices (1,3,5...)
+            start_sign = sign_num if (sign_num % 2 == 0) else (sign_num + NINTH_SIGN_OFFSET) % 12
+        elif start_rule == 'odd_even_d7':
+             # Odd: same, Even: 7th
+            start_sign = sign_num if (sign_num % 2 == 0) else (sign_num + 6) % 12
         elif start_rule == 'movable_fixed_dual':
-            if sign_num in [0, 3, 6, 9]:  # Movable
+            # 7. MOVABLE/FIXED/DUAL GROUPING
+            if sign_num in MOVABLE_SIGNS:
                 start_sign = sign_num
-            elif sign_num in [1, 4, 7, 10]:  # Fixed
-                start_sign = (sign_num + NINTH_OFFSET) % 12
-            else:  # Dual [2, 5, 8, 11]
-                start_sign = (sign_num + FIFTH_OFFSET) % 12
+            elif sign_num in FIXED_SIGNS:
+                # 10. OFFSET CONSTANTS
+                start_sign = (sign_num + NINTH_SIGN_OFFSET) % 12
+            else:  # Dual
+                start_sign = (sign_num + FIFTH_SIGN_OFFSET) % 12
         
-        varga_sign_num = (start_sign + division - 1) % 12
+        # 5. DIVISION ARITHMETIC SIMPLIFICATION
+        # (start_sign + (division_index + 1) - 1) simplifies to:
+        varga_sign_num = (start_sign + division_index) % 12
         
-        # Degree within varga sign - handle boundary properly
-        degree_in_division = degree - (division_index * div_size)
+        # 3. DEGREE_IN_DIVISION SAFETY
+        degree_in_division = max(0.0, degree - (division_index * div_size))
+        
         v_degree = (degree_in_division / div_size) * 30.0
-        v_degree = min(v_degree, 29.9999)  # Cap at sign boundary
+        
+        # 4. V_DEGREE CAPPING LOGIC
+        if v_degree >= 30.0:
+            logger.warning(f"{planet_name}: v_degree {v_degree} exceeded 30, capping")
+            v_degree = 29.9999
         
         v_longitude = varga_sign_num * 30 + v_degree
         
@@ -92,8 +121,9 @@ def calculate_varga(chart_data: Dict, divisor: int, start_rule: str) -> Dict:
             'name': planet_data['name'],
             'sign': ZODIAC_SIGNS[varga_sign_num],
             'sign_num': varga_sign_num,
-            'degree': round(v_degree, 4),
-            'abs_pos': round(v_longitude, 4)
+            # 8. PRECISION CONSTANT
+            'degree': round(v_degree, DEGREE_PRECISION),
+            'abs_pos': round(v_longitude, DEGREE_PRECISION)
         }
     
     logger.debug(f"Calculated {divisor} varga with rule {start_rule}")
@@ -166,7 +196,7 @@ def calculate_d4_chaturthamsa(chart_data: Dict) -> Dict:
 
 def calculate_d7_saptamsa(chart_data: Dict) -> Dict:
     """D7 - Saptamsa (Children) - Odd: from same, Even: from 7th"""
-    return calculate_varga(chart_data, 7, 'odd_even_d7') # Wait, I need to update calculate_varga for this
+    return calculate_varga(chart_data, 7, 'odd_even_d7')
 
 def calculate_d5_panchamsa(chart_data: Dict) -> Dict:
     """D5 - Panchamsa"""

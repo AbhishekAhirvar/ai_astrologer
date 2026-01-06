@@ -6,7 +6,7 @@ Vedic Astrology AI - Tabs Layout + Detailed Nakshatra
 import gradio as gr
 from backend.location import get_location_data
 from backend.astrology import generate_vedic_chart
-from backend.ai import get_astrology_prediction
+from backend.ai import get_astrology_prediction, get_followup_questions
 from backend.chart_renderer import generate_all_charts, generate_single_varga
 from backend.table_renderer import create_planetary_table_image, create_detailed_nakshatra_table
 from backend.logger import logger
@@ -356,105 +356,89 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                     
                     kp_msg = gr.Textbox(label="Ask KP Astrology", placeholder="Ask using Krishnamurti Paddhati rules...", scale=7)
 
-            def parse_ai_response(response):
-                """Extract text and suggestions from AI response using || separator"""
-                # Handle error responses
-                if not response or isinstance(response, tuple):
-                    return str(response), []
-                
-                if "[SUGGESTIONS]" in response:
-                    parts = response.split("[SUGGESTIONS]", 1)  # Split only once
-                    text = parts[0].strip()
-                    
-                    # Remove any trailing punctuation from main text that might have leaked
-                    text = text.rstrip(" .?!-")
-                    
-                    # Split by || for robust separation
-                    sug_raw = parts[1].split("||")
-                    suggestions = []
-                    
-                    for s in sug_raw:
-                        # Clean each suggestion more carefully
-                        cleaned = s.strip()
-                        # Remove leading/trailing special chars but preserve internal ones
-                        cleaned = cleaned.strip(" -.?!*\"'")
-                        
-                        if cleaned:  # Only add non-empty suggestions
-                            # Ensure it ends with a question mark
-                            if not cleaned.endswith('?'):
-                                cleaned += '?'
-                            suggestions.append(cleaned)
-                    
-                    return text, suggestions[:3]  # Return max 3 suggestions
-                
-                # No suggestions found
-                return response.strip(), []
+
 
             def handle_chat_input(user_input, history, chart_data, is_kp=False):
-                """Unified chat entry point for Gradio 6.0"""
+                """Unified chat entry point using separated AI calls"""
                 if not chart_data:
                     error_msg = "⚠️ Please generate a birth chart first in the first tab!"
                     history.append({"role": "user", "content": user_input})
                     history.append({"role": "assistant", "content": error_msg})
-                    return history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
+                    yield history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
+                    return
                 
                 if not check_rate_limit():
                     logger.warning(f"Rate limit exceeded for {user_input[:20]}...")
                     history.append({"role": "user", "content": user_input})
                     history.append({"role": "assistant", "content": "⚠️ Rate limit exceeded. Please wait a minute."})
-                    return history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
+                    yield history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
+                    return
                 
                 # Append user message
                 history.append({"role": "user", "content": user_input})
+                yield history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
                 
-                # Get AI response (Inject API KEY)
-                response = get_astrology_prediction(chart_data, user_input, api_key=os.getenv("GEMINI_API_KEY"), is_kp_mode=is_kp)
-                text, suggestions = parse_ai_response(response)
+                api_key = os.getenv("GEMINI_API_KEY")
                 
-                # Append assistant response
-                history.append({"role": "assistant", "content": text})
+                # 1. Get Answer
+                history.append({"role": "assistant", "content": "..."}) # Placeholder
+                yield history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
                 
-                # Dynamic updates
+                text_response = get_astrology_prediction(chart_data, user_input, api_key=api_key, is_kp_mode=is_kp)
+                history[-1]["content"] = text_response
+                yield history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
+
+                # 2. Get Suggestions (Independent call)
+                suggestions = get_followup_questions(user_input, api_key=api_key, is_kp_mode=is_kp)
+                logger.info(f"Generated Suggestions: {suggestions}")
+                
                 s1 = gr.update(value=suggestions[0], visible=True) if len(suggestions) > 0 else gr.update(visible=False)
                 s2 = gr.update(value=suggestions[1], visible=True) if len(suggestions) > 1 else gr.update(visible=False)
                 s3 = gr.update(value=suggestions[2], visible=True) if len(suggestions) > 2 else gr.update(visible=False)
                 
-                return history, "", s1, s2, s3
+                yield history, "", s1, s2, s3
+
+            # Wrappers to handle generator yield properly
+            def vedic_chat_handler(u, h, c):
+                yield from handle_chat_input(u, h, c, False)
+
+            def kp_chat_handler(u, h, c):
+                yield from handle_chat_input(u, h, c, True)
 
             # VEDIC EVENTS
             v_msg.submit(
-                lambda u, h, c: handle_chat_input(u, h, c, False),
+                vedic_chat_handler,
                 [v_msg, v_chatbot, chart_state], 
                 [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
             )
             for qb in vedic_q_btns:
                 qb.click(
-                    lambda u, h, c: handle_chat_input(u, h, c, False),
+                    vedic_chat_handler,
                     [qb, v_chatbot, chart_state],
                     [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
                 )
             for sb in [v_s_btn1, v_s_btn2, v_s_btn3]:
                 sb.click(
-                    lambda u, h, c: handle_chat_input(u, h, c, False),
+                    vedic_chat_handler,
                     [sb, v_chatbot, chart_state],
                     [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
                 )
 
             # KP EVENTS
             kp_msg.submit(
-                lambda u, h, c: handle_chat_input(u, h, c, True),
+                kp_chat_handler,
                 [kp_msg, kp_chatbot, chart_state], 
                 [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
             )
             for qb in kp_q_btns:
                 qb.click(
-                    lambda u, h, c: handle_chat_input(u, h, c, True),
+                    kp_chat_handler,
                     [qb, kp_chatbot, chart_state],
                     [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
                 )
             for sb in [kp_s_btn1, kp_s_btn2, kp_s_btn3]:
                 sb.click(
-                    lambda u, h, c: handle_chat_input(u, h, c, True),
+                    kp_chat_handler,
                     [sb, kp_chatbot, chart_state],
                     [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
                 )

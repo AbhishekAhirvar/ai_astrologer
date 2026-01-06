@@ -15,18 +15,15 @@ logger.info(f"🤖 AI Module initialized with Google Gemini model: {GEMINI_MODEL
 
 def get_astrology_prediction(chart_data, user_query, api_key, is_kp_mode=False):
     """
-    Sends essential chart data and query to Google Gemini 3.0 Flash API.
+    Sends essential chart data and query to Google Gemini 3 Flash Preview API.
     """
     if not api_key:
         logger.error("API Key not provided to get_astrology_prediction")
-        return "⚠️ Error: API Key missing. Please check configuration.", []
+        return "⚠️ Error: API Key missing. Please check configuration."
     
     try:
-        # Configure Gemini API
-        genai.configure(api_key=api_key)
-        
         if "error" in chart_data:
-            return f"Could not generate prediction due to chart error: {chart_data['error']}", []
+            return f"Could not generate prediction due to chart error: {chart_data['error']}"
 
         # 1. OPTIMIZE DATA: Extract only essential info to save tokens
         planets = ['sun', 'moon', 'ascendant', 'mars', 'mercury', 'jupiter', 'venus', 'saturn', 'rahu', 'ketu']
@@ -57,50 +54,100 @@ def get_astrology_prediction(chart_data, user_query, api_key, is_kp_mode=False):
         
         planets_str = ", ".join(essential_data)
 
-        # 2. SYSTEM INSTRUCTION
+        # 2. SYSTEM INSTRUCTION - Focus on Answer ONLY
         if is_kp_mode:
             system_instruction = (
-                "You are an expert KP Astrologer (Krishnamurti Paddhati). Analyze using KP rules: Sub-lords, Custal significators, and Ruling Planets. "
-                "GROUNDING RULES: "
-                "1. Strictly answer only questions related to astrology, destiny, or life events via planetary analysis. "
-                "2. If a question is slightly unrelated (e.g., 'how to be happy'), link it back to their planets (e.g., Moon/Jupiter positions). "
-                "3. If a question is completely unrelated (e.g., 'how to bake a cake', 'coding help'), politely refuse and state you can only provide astrological guidance. "
-                "4. Provide a concise response under 50 words. "
-                "5. ALWAYS end by adding exactly 3 full-sentence, KP-specialized questions separated by ' || ' and preceded by the tag [SUGGESTIONS]."
+                "You are an expert KP Astrologer. Give an accurate prediction (approx 50 words) based on the planetary data and KP rules. "
+                "Do NOT provide suggestions or questions."
             )
         else:
             system_instruction = (
-                "You are an expert Vedic Astrologer. "
-                "GROUNDING RULES: "
-                "1. Strictly answer only questions related to astrology, destiny, or life events via planetary analysis. "
-                "2. If a question is slightly unrelated, link it back to their planets or dashas. "
-                "3. If a question is completely unrelated (e.g., 'cooking', 'technology', 'math'), politely refuse to answer. "
-                "4. Provide a concise response under 50 words. "
-                "5. ALWAYS end by adding exactly 3 full-sentence, real-life suggested questions separated by ' || ' and preceded by the tag [SUGGESTIONS]."
+                "You are an expert Vedic Astrologer. Give an accurate prediction (approx 50 words) based on the planetary data. "
+                "Do NOT provide suggestions or questions."
             )
 
         # 3. PROMPT
-        prompt_content = f"{system_instruction}\n\nPositions: {planets_str}. User Question: {user_query}."
+        prompt_content = f"{system_instruction}\n\nPlanetary Positions: {planets_str}\n\nQuestion: {user_query}"
 
-        # Initialize Gemini model
-        model = genai.GenerativeModel(
-            model_name=GEMINI_MODEL,
-            generation_config={
-                "temperature": 0.7,
-                "max_output_tokens": 150,
-            }
-        )
+        # Initialize Gemini client with new API
+        client = genai.Client(api_key=api_key)
         
         # Generate response
-        response = model.generate_content(prompt_content)
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt_content,
+            config=types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=1000,
+            )
+        )
         
         if response and response.text:
-            logger.info(f"AI prediction successful for {user_query[:30]}...")
             return response.text.strip()
         else:
-            logger.error("Empty response from Gemini API")
             return "⚠️ Error: Empty response from AI"
             
     except Exception as e:
         logger.exception(f"Exception during AI prediction: {str(e)}")
         return f"⚠️ Connection Error: {str(e)}"
+
+
+def get_followup_questions(user_query, api_key, is_kp_mode=False):
+    """
+    Generates 3 follow-up questions based on the user's query.
+    """
+    if not api_key:
+        return ["Error: API Key missing"] * 3
+        
+    try:
+        # 1. SYSTEM INSTRUCTION - Focus on Questions ONLY
+        if is_kp_mode:
+            system_instruction = (
+                "You are an expert KP Astrologer. "
+                "Generate exactly 3 good, thoughtful follow-up questions based on real-life situations and the user's specific query. "
+                "KP Context: Sub-lords, significators, ruling planets."
+                "Format: Question 1 || Question 2 || Question 3"
+            )
+        else:
+            system_instruction = (
+                "You are an expert Vedic Astrologer. "
+                "Generate exactly 3 good, thoughtful follow-up questions based on real-life situations and the user's specific query. "
+                "Format: Question 1 || Question 2 || Question 3"
+            )
+
+        prompt_content = f"{system_instruction}\n\nUser Question: {user_query}\n\nOutput only the 3 questions separated by ||."
+
+        client = genai.Client(api_key=api_key)
+        
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt_content,
+            config=types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=100,
+            )
+        )
+        
+        if response and response.text:
+            raw_text = response.text.strip()
+            # Parse the || separated questions
+            parts = raw_text.split("||")
+            suggestions = []
+            for p in parts:
+                clean_q = p.strip().replace("**", "").replace("*", "")
+                if clean_q:
+                    if not clean_q.endswith('?'):
+                        clean_q += '?'
+                    suggestions.append(clean_q)
+            
+            # Ensure we have exactly 3
+            while len(suggestions) < 3:
+                suggestions.append("What else should I know?")
+            
+            return suggestions[:3]
+            
+        return ["What does this mean?", "Any remedies?", "Future outlook?"]
+
+    except Exception as e:
+        logger.exception(f"Exception during suggestions generation: {str(e)}")
+        return ["Error generating suggestions"] * 3

@@ -1,7 +1,7 @@
 gradio
 kerykeion
 geopy
-google-generativeai
+google-genai
 python-dotenv
 matplotlib
 pillow

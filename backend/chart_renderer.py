@@ -64,10 +64,28 @@ class NorthIndianChart:
             chart_type: Chart type - 'D1' (Rashi), 'D9' (Navamsa), etc.
             name: Optional name/title for the chart
         """
-        if not isinstance(chart_data, dict):
-            raise ValueError("chart_data must be a dictionary")
-            
-        self.chart_data = chart_data
+        if hasattr(chart_data, 'dict'):
+            # Convert Pydantic model to dict for internal usage
+            self.chart_data = chart_data.dict()
+            # If ChartResponse structure (planets + vargas flattened for this renderer?)
+            # The renderer expects D1 data at top level OR proper keys.
+            # ChartResponse has 'planets' and 'vargas'.
+            # NorthIndianChart logic expects flat dict with planets AND keys like 'd9_chart'.
+            # We need to flatten it if it matches ChartResponse structure.
+            if 'planets' in self.chart_data and 'vargas' in self.chart_data:
+                # Flask flatten for renderer compatibility
+                flat_data = self.chart_data['planets'].copy()
+                flat_data.update(self.chart_data['vargas'])
+                flat_data['_metadata'] = self.chart_data.get('metadata', {})
+                self.chart_data = flat_data
+        elif isinstance(chart_data, dict):
+            self.chart_data = chart_data
+        else:
+            # Try vars() or fail
+            try:
+                self.chart_data = vars(chart_data)
+            except:
+                raise ValueError("chart_data must be a dictionary or Pydantic model")
         self.chart_type = chart_type.upper()
         self.name = name
         self.fig: Optional[plt.Figure] = None
@@ -309,7 +327,7 @@ class NorthIndianChart:
             },
             # House 5: Left-lower
             5: {
-                'text_center': (1.7, 3.5),  # Outer
+                'text_center': (1.7, 3.0),  # Outer
                 'rashi_pos': (2.75, 3.0),   # Ref (3,3), Left 0.25
                 'font_size': 9
             },
@@ -333,7 +351,7 @@ class NorthIndianChart:
             },
             # House 9: Right-lower
             9: {
-                'text_center': (8.1, 3.0),  # Outer
+                'text_center': (8.2, 3.0),  # Outer
                 'rashi_pos': (7.25, 3.0),   # Ref (7,3), Right 0.25
                 'font_size': 9
             },

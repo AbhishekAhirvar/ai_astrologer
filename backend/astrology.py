@@ -7,11 +7,15 @@ Implements proper Vedic calculation methods
 import swisseph as swe
 from datetime import datetime
 import pytz
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, Optional, List, Union
 from enum import Enum
 from backend.nakshatra_data import get_nakshatra_by_longitude
 from backend.varga_charts import calculate_all_vargas
 from backend.logger import logger
+from backend.schemas import (
+    ChartResponse, PlanetPosition, ChartMetadata, 
+    NakshatraInfo, VargaPlanet
+)
 from backend.config import (
     ZODIAC_SIGNS, SIGN_LORDS, NATURAL_RELATIONSHIPS, 
     KARAKA_LABELS, PLANET_IDS, DEFAULT_AYANAMSA
@@ -89,33 +93,35 @@ def get_ordinal_suffix(n: int) -> str:
 # ============================================================================
 
 def calculate_julian_day(year: int, month: int, day: int, 
-                         hour: int, minute: int) -> float:
+                         hour: int, minute: int, timezone_str: str = "Asia/Kolkata") -> float:
     """
-    Calculate Julian Day for given datetime (assumes IST).
+    Calculate Julian Day for given datetime (handles Timezones).
     
     Args:
         year, month, day, hour, minute: Date and time components
+        timezone_str: Timezone string (e.g. "Asia/Kolkata", "UTC")
     
     Returns:
         Julian Day number
-        
-    Raises:
-        EphemerisCalculationError: If calculation fails
     """
     try:
         # Input validation implicit in datetime constructor
-        tz = pytz.timezone('Asia/Kolkata')
+        try:
+            tz = pytz.timezone(timezone_str)
+        except pytz.UnknownTimeZoneError:
+            logger.warning(f"Unknown timezone {timezone_str}, defaulting to Asia/Kolkata")
+            tz = pytz.timezone('Asia/Kolkata')
+            
         dt = tz.localize(datetime(year, month, day, hour, minute))
         dt_utc = dt.astimezone(pytz.UTC)
         
-        logger.info(f"Calculating Julian Day for input {year}-{month}-{day} {hour}:{minute} (UTC: {dt_utc})")
+        logger.info(f"Calculating Julian Day for input {year}-{month}-{day} {hour}:{minute} {timezone_str} (UTC: {dt_utc})")
         
         jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, 
                          dt_utc.hour + dt_utc.minute / 60.0)
         return jd
     except Exception as e:
         logger.error(f"Failed to calculate Julian Day: {e}")
-        # Fallback logic removed as it masks errors, better to fail explicitly if pytz/swe fails
         raise EphemerisCalculationError(f"Julian Day calculation failed: {str(e)}")
 
 
@@ -348,28 +354,19 @@ def calculate_compound_relationship(planet_name: str, sign_num: int,
 
 def generate_vedic_chart(name: str, year: int, month: int, day: int,
                         hour: int, minute: int, city: str, 
-                        lat: float, lon: float) -> Dict:
+                        lat: float, lon: float, timezone_str: str = "Asia/Kolkata") -> Union[Dict, ChartResponse]:
     """
     Generate complete Vedic astrology chart with all calculations.
-    
-    Args:
-        name: Person's name
-        year, month, day, hour, minute: Birth datetime
-        city: Birth city name
-        lat: Latitude
-        lon: Longitude
-    
-    Returns:
-        Complete chart dictionary with all calculations
+    Returns a Pydantic Model (ChartResponse) for robustness.
     """
     try:
-        logger.info(f"Generating chart for {name} ({city}, {year}-{month}-{day})")
+        logger.info(f"Generating chart for {name} ({city}, {year}-{month}-{day}) Tz: {timezone_str}")
         
         # 1. Validation Layer
         validate_input(year, month, day, hour, minute, lat, lon)
         
         # 2. Calculate Julian Day
-        jd = calculate_julian_day(year, month, day, hour, minute)
+        jd = calculate_julian_day(year, month, day, hour, minute, timezone_str)
         
         # 3. Get planetary positions
         chart_data = calculate_planetary_positions(jd)
@@ -419,28 +416,54 @@ def generate_vedic_chart(name: str, year: int, month: int, day: int,
                 planet_data['nakshatra'] = {'nakshatra': 'Unknown', 'lord': '-', 'pada': 0}
         
         # 7. Calculate divisional charts (Vargas)
+        varga_data = {}
         try:
-            varga_data = calculate_all_vargas(chart_data)
-            chart_data.update(varga_data)
+            vargas_raw = calculate_all_vargas(chart_data)
+            
+            # Convert vargas to schema format
+            for v_name, v_chart in vargas_raw.items():
+                v_planets = {}
+                for p_name, p_data in v_chart.items():
+                     if isinstance(p_data, dict) and 'sign' in p_data:
+                         v_planets[p_name] = VargaPlanet(**p_data)
+                varga_data[v_name] = v_planets
+                
         except Exception as e:
             logger.error(f"Varga calculation failed: {e}")
-            # Don't fail entire chart for vargas, just log
-            chart_data['error_varga'] = str(e)
+            # Don't fail entire chart for vargas
         
         # 8. Add metadata
-        chart_data['_metadata'] = {
-            'name': name,
-            'datetime': f"{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}",
-            'location': city,
-            'latitude': lat,
-            'longitude': lon,
-            'ayanamsa': round(swe.get_ayanamsa_ut(jd), 2),
-            'zodiac_system': 'Sidereal (Lahiri)',
-            'house_system': 'Whole Sign'
-        }
+        metadata = ChartMetadata(
+            name=name,
+            datetime=f"{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}",
+            location=city,
+            latitude=lat,
+            longitude=lon,
+            ayanamsa=round(swe.get_ayanamsa_ut(jd), 2),
+            zodiac_system='Sidereal (Lahiri)',
+            house_system='Whole Sign',
+            gender='Unknown' # Default
+        )
+
+        # 9. Construct Response
+        planets_dict = {}
+        for p_name, p_data in chart_data.items():
+            if not isinstance(p_data, dict): continue
+            
+            # Convert Nakshatra to schema
+            if 'nakshatra' in p_data and isinstance(p_data['nakshatra'], dict):
+                p_data['nakshatra'] = NakshatraInfo(**p_data['nakshatra'])
+            
+            planets_dict[p_name] = PlanetPosition(**p_data)
+            
+        response = ChartResponse(
+            planets=planets_dict,
+            metadata=metadata,
+            vargas=varga_data
+        )
         
-        logger.info("Chart generation completed successfully.")
-        return chart_data
+        logger.info("Chart generation completed successfully (Pydantic).")
+        return response
         
     except AstrologyError as e:
         logger.error(f"Astrology Error: {e}")
