@@ -157,7 +157,17 @@ def update_varga_display(chart_data, varga_type):
 
 
 
-with gr.Blocks(title="Vedic Astrology AI") as demo:
+# Custom CSS for proper textbox rendering
+custom_css = """
+.gradio-container input[type="text"],
+.gradio-container input[type="time"],
+.gradio-container input[type="date"] {
+    line-height: 1.5 !important;
+    padding: 8px 12px !important;
+}
+"""
+
+with gr.Blocks(title="Vedic Astrology AI", css=custom_css) as demo:
     
     chart_state = gr.State(None)
     
