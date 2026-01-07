@@ -1,16 +1,20 @@
+import asyncio
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 from backend.logger import logger
 
-def get_location_data(place_name):
+async def get_location_data(place_name):
     """
     Returns (latitude, longitude, address) for a given place name.
     Returns None if not found or error.
     """
-    geolocator = Nominatim(user_agent="astro_chatbot_mvp")
+    def sync_lookup():
+        geolocator = Nominatim(user_agent="astro_chatbot_mvp")
+        return geolocator.geocode(place_name)
+
     try:
         logger.info(f"Looking up location: {place_name}")
-        location = geolocator.geocode(place_name)
+        location = await asyncio.to_thread(sync_lookup)
         if location:
             return location.latitude, location.longitude, location.address
         else:
