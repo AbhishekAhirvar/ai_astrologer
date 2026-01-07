@@ -1,9 +1,10 @@
 gradio
 kerykeion
 geopy
-google-genai
+openai>=1.0.0
 python-dotenv
 matplotlib
 pillow
 numpy
 requests
+tenacity
