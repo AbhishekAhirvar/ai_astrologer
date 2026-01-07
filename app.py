@@ -156,16 +156,6 @@ def update_varga_display(chart_data, varga_type):
     return img_path
 
 
-# UI
-custom_css = """
-.gradio-container .form input {
-    padding: 10px 12px !important;
-}
-.group-header {
-    margin-bottom: -10px !important;
-    font-weight: bold;
-}
-"""
 
 with gr.Blocks(title="Vedic Astrology AI") as demo:
     
@@ -183,17 +173,17 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
         
         # TAB 1: Chart Generator
         with gr.Tab("📊 Birth Chart Generator"):
-            with gr.Group():
-                gr.Markdown("### Enter Birth Details", elem_classes="group-header")
-                with gr.Row():
-                    name = gr.Textbox(label="Name", placeholder="John Doe", scale=2)
-                    gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male", scale=1)
-                
-                with gr.Row():
-                    dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"), scale=1)
-                    dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"), scale=1)
-                
-                place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
+            gr.Markdown("### Enter Birth Details")
+            
+            with gr.Row():
+                name = gr.Textbox(label="Name", placeholder="John Doe")
+                gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
+            
+            with gr.Row():
+                dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
+                dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
+            
+            place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
             
             generate_btn = gr.Button("🔮 Generate Chart", variant="primary", size="lg")
             
@@ -418,4 +408,4 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(share=False, server_name="0.0.0.0", server_port=7860, css=custom_css)
+    demo.launch(share=False, server_name="0.0.0.0", server_port=7860)
