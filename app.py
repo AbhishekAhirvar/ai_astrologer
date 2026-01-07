@@ -159,7 +159,7 @@ def update_varga_display(chart_data, varga_type):
 # UI
 custom_css = """
 .gradio-container .form input {
-    height: 45px !important;
+    padding: 10px 12px !important;
 }
 .group-header {
     margin-bottom: -10px !important;
