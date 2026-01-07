@@ -52,8 +52,8 @@ async def get_astrology_prediction_stream(chart_data, user_query, api_key, histo
         planets_str = ", ".join(essential_data)
         system_instruction = (
             f"You are an expert {'KP' if is_kp_mode else 'Vedic'} Astrologer. "
-            "Give an accurate prediction (approx 50 words) based on the planetary data. "
-            "Maintain conversation continuity."
+            "CRITICAL: Keep response under 60 words MAX. Be concise and direct. "
+            "Give accurate prediction based on planetary data. Maintain conversation continuity."
         )
 
         def format_msg(role, content):
@@ -168,8 +168,8 @@ async def get_astrology_prediction(chart_data, user_query, api_key, history=None
         # 2. SYSTEM INSTRUCTION
         system_instruction = (
             f"You are an expert {'KP' if is_kp_mode else 'Vedic'} Astrologer. "
-            "Give an accurate prediction (approx 50 words) based on the planetary data. "
-            "Maintain conversation continuity if history is provided."
+            "CRITICAL: Keep response under 60 words MAX. Be concise and direct. "
+            "Give accurate prediction based on planetary data. Maintain conversation continuity if history is provided."
         )
 
         def format_msg(role, content):
@@ -224,8 +224,9 @@ async def get_followup_questions(api_key, chart_data=None, is_kp_mode=False):
     try:
         system_instruction = (
             f"You are an expert {'KP' if is_kp_mode else 'Vedic'} Astrologer. "
-            "Generate 3 VERY SHORT follow-up questions for the user. "
-            "CRITICAL: Each question MUST be under 7 words. No preamble."
+            "Generate 3 VERY SHORT follow-up questions for the user in FIRST PERSON (use 'I', 'my', 'me'). "
+            "CRITICAL: Each question MUST be under 7 words. No preamble. "
+            "Examples: 'Will I get promoted?', 'What's my career path?', 'Should I relocate abroad?' "
             "Format: Question 1 || Question 2 || Question 3"
         )
         

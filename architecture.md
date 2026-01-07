@@ -27,9 +27,9 @@ graph TD
     subgraph "Intelligence Layer"
         User -->|Chat Query| UI
         UI -->|Query + Chart Ctx| AI[AI Service<br>(backend/ai.py)]
-        AI -->|API Call| HF[Hugging Face Inference API]
-        HF -->|Prediction| AI
-        AI -->|Response| UI
+        AI -->|Responses API| OAI[OpenAI GPT-5.2<br>(2026 API)]
+        OAI -->|Streamed Prediction| AI
+        AI -->|Real-time Response| UI
     end
 ```
 
@@ -60,12 +60,13 @@ graph TD
     -   **Output**: High-DPI images saved to `generated_charts/`.
 
 ### D. AI Intelligence (`backend/ai.py`)
--   **Technology**: Hugging Face Inference API (`requests` library).
--   **Model**: `Qwen/Qwen2.5-72B-Instruct` (or similar LLM).
--   **Role**: Interprets the JSON chart data into human-readable advice.
+-   **Technology**: OpenAI Responses API (2026 Version).
+-   **Model**: `gpt-5.2` (or latest).
+-   **Role**: Interprets JSON chart data with streaming conversation history.
 -   **Strategy**:
-    -   **Context Injection**: Sends planetary positions + User Query + System Prompt.
-    -   **Grounding**: Prompt engineering to strictly refuse non-astrology questions (e.g., cooking, coding).
+    -   **Responses SDK**: Uses `client.responses.create` with explicit block formatting (`input_text`/`output_text`).
+    -   **History Support**: Maintains context by parsing previous content blocks into plain text for re-submission.
+    -   **Strict Constraints**: Prompt engineering to force responses under 60 words and first-person suggestions.
 
 ---
 
@@ -93,16 +94,16 @@ graph TD
 
 **Verdict**: Local SwissEph is superior in every technical aspect (speed, cost, control) compared to using a SaaS API.
 
-### 🧠 AI: HF Inference API vs. Local LLM (Ollama)
+### 🧠 AI: OpenAI GPT-5.2 vs. Hugging Face / Ollama
 
-| Feature | **Current: HF Inference API** | **Alternative: Local LLM (Ollama)** | **Trade-off Analysis** |
+| Feature | **Current: OpenAI GPT-5.2 (2026)** | **Alternative: HF / Ollama** | **Trade-off Analysis** |
 | :--- | :--- | :--- | :--- |
-| **Hardware** | ☁️ **Cloud (No GPU req)** | 💻 Requires GPU/RAM | HF runs on their servers. Local LLM requires user to have strong hardware (RAM/VRAM). |
-| **Model Size** | 🧠 **72B+ Models** | 🧠 Small (7B/8B) | Can access massive models via API. Local is limited by consumer VRAM. |
-| **Privacy** | ⚠️ Data sent to cloud | 🔒 **100% Private** | Local is better if privacy is paramount, but HF is generally secure. |
-| **Cost** | 💸 Free/Cheap | 💸 Hardware Cost | HF Free tier is limited but serviceable. |
+| **Reasoning** | 🧠 **Built-in (Reasoning Effort)** | ⚠️ Standard Completion | OpenAI 2026 API allows native reasoning effort control (low/med/high). |
+| **Streaming** | ⚡ **Native Block Stream** | 🔄 Server-Sent Events | OpenAI's Responses API provides complex event types (deltas, part_done) for robust UIs. |
+| **Cost** | 💰 Pay-per-token (discounted cache) | 💸 Free (HF) / Hardware (Ollama) | OpenAI is paid but offers superior quality and zero infra management. |
+| **Latency** | ⚡ **Fastest Streaming** | 🐢 Variable (Inference API) | OpenAI's global infra provides lower TTFT (Time To First Token). |
 
-**Verdict**: For a web-hosted demo, Cloud API is essential. Local LLM would make deployment impossible for users without GPUs.
+**Verdict**: OpenAI GPT-5.2's 2026 SDK is the current choice for industry-grade reliability and reasoning capabilities.
 
 ### 📊 Visualization: Matplotlib vs. D3.js
 
