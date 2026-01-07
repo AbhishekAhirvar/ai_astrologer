@@ -167,7 +167,7 @@ custom_css = """
 }
 """
 
-with gr.Blocks(title="Vedic Astrology AI", css=custom_css) as demo:
+with gr.Blocks(title="Vedic Astrology AI") as demo:
     
     chart_state = gr.State(None)
     
@@ -186,14 +186,14 @@ with gr.Blocks(title="Vedic Astrology AI", css=custom_css) as demo:
             gr.Markdown("### Enter Birth Details")
             
             with gr.Row():
-                name = gr.Textbox(label="Name", placeholder="John Doe", container=False)
+                name = gr.Textbox(label="Name", placeholder="John Doe")
                 gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
             
             with gr.Row():
-                dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"), container=False)
-                dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"), container=False)
+                dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
+                dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
             
-            place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi", container=False)
+            place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
             
             generate_btn = gr.Button("🔮 Generate Chart", variant="primary", size="lg")
             
@@ -319,6 +319,8 @@ with gr.Blocks(title="Vedic Astrology AI", css=custom_css) as demo:
                     return
                 
                 api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY")
+                if api_key:
+                    api_key = api_key.strip()
                 
                 # Setup UI
                 history.append({"role": "user", "content": user_input})
@@ -335,7 +337,7 @@ with gr.Blocks(title="Vedic Astrology AI", css=custom_css) as demo:
                         full_text += chunk
                         history[-1]["content"] = full_text
                         # Yield updates for all outputs to ensure rendering in Gradio 6
-                        yield history, "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
+                        yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
                 except Exception as e:
                     logger.error(f"Stream error: {e}")
                     history[-1]["content"] = f"⚠️ AI Error: {str(e)}. Please check your quota or try again later."
@@ -418,4 +420,4 @@ with gr.Blocks(title="Vedic Astrology AI", css=custom_css) as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(share=False, server_name="0.0.0.0", server_port=7860)
+    demo.launch(share=False, server_name="0.0.0.0", server_port=7860, css=custom_css)
