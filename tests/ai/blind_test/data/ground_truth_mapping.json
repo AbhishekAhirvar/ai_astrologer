@@ -1,0 +1,206 @@
+{
+  "Subject-6VUF87": {
+    "identity": "Steve Jobs",
+    "known_facts": {
+      "career": [
+        "Technology innovator",
+        "Founded Apple",
+        "Perfectionist",
+        "Visionary"
+      ],
+      "personality": [
+        "Demanding leader",
+        "Charismatic",
+        "Spiritual interests"
+      ],
+      "challenges": [
+        "Fired from own company",
+        "Health issues"
+      ],
+      "major_events": [
+        "1976: Co-founded Apple Computer",
+        "1985: Forced out of Apple",
+        "1997: Returned to Apple as CEO",
+        "2001: Launched iPod",
+        "2007: Launched iPhone",
+        "2011: Passed away from pancreatic cancer"
+      ]
+    }
+  },
+  "Subject-9SF921": {
+    "identity": "Oprah Winfrey",
+    "known_facts": {
+      "career": [
+        "Media mogul",
+        "Television host",
+        "Billionaire",
+        "Author"
+      ],
+      "personality": [
+        "Empathetic",
+        "Influential speaker",
+        "Philanthropist"
+      ],
+      "challenges": [
+        "Poverty in childhood",
+        "Never married"
+      ],
+      "major_events": [
+        "1986: The Oprah Winfrey Show nationally syndicated",
+        "1988: Founded Harpo Productions",
+        "1998: Co-founded Oxygen Media",
+        "2011: Ended talk show, launched OWN network",
+        "2013: Awarded Presidential Medal of Freedom"
+      ]
+    }
+  },
+  "Subject-602FRM": {
+    "identity": "Elon Musk",
+    "known_facts": {
+      "career": [
+        "Multi-entrepreneur",
+        "Technology pioneer",
+        "Space exploration",
+        "Electric vehicles"
+      ],
+      "personality": [
+        "Workaholic",
+        "Risk-taker",
+        "Controversial"
+      ],
+      "challenges": [
+        "Multiple divorces",
+        "Public controversies"
+      ],
+      "major_events": [
+        "1995: Founded Zip2",
+        "1999: Co-founded X.com (later PayPal)",
+        "2002: Founded SpaceX",
+        "2004: Joined Tesla as chairman",
+        "2008: Became Tesla CEO",
+        "2020: SpaceX successfully launched astronauts to ISS",
+        "2022: Acquired Twitter"
+      ]
+    }
+  },
+  "Subject-2O0X98": {
+    "identity": "Mahatma Gandhi",
+    "known_facts": {
+      "career": [
+        "Political leader",
+        "Independence movement",
+        "Non-violence philosophy",
+        "Lawyer"
+      ],
+      "personality": [
+        "Peaceful",
+        "Principled",
+        "Ascetic",
+        "Spiritual"
+      ],
+      "challenges": [
+        "Assassinated",
+        "Long struggle"
+      ],
+      "major_events": [
+        "1893: Experienced racism in South Africa",
+        "1915: Returned to India from South Africa",
+        "1930: Led Salt March (Dandi March)",
+        "1942: Launched Quit India Movement",
+        "1947: India gained independence",
+        "1948: Assassinated in New Delhi"
+      ]
+    }
+  },
+  "Subject-1LV76F": {
+    "identity": "Albert Einstein",
+    "known_facts": {
+      "career": [
+        "Physicist",
+        "Nobel Prize",
+        "Theory of relativity",
+        "Professor"
+      ],
+      "personality": [
+        "Unconventional thinker",
+        "Pacifist",
+        "Curious"
+      ],
+      "challenges": [
+        "Struggled in school",
+        "Fled Nazi Germany"
+      ],
+      "major_events": [
+        "1905: Published groundbreaking papers (Annus Mirabilis)",
+        "1915: Completed general theory of relativity",
+        "1921: Awarded Nobel Prize in Physics",
+        "1933: Emigrated to US fleeing Nazi regime",
+        "1939: Signed letter to Roosevelt about atomic weapons",
+        "1955: Passed away in Princeton"
+      ]
+    }
+  },
+  "Control-U42QZL": {
+    "identity": "Fictional Person (No Real Biography)",
+    "known_facts": {}
+  },
+  "Control-43UPQL": {
+    "identity": "Fictional Person (No Real Biography)",
+    "known_facts": {}
+  },
+  "Duplicate-IIVXL0": {
+    "identity": "Steve Jobs",
+    "known_facts": {
+      "career": [
+        "Technology innovator",
+        "Founded Apple",
+        "Perfectionist",
+        "Visionary"
+      ],
+      "personality": [
+        "Demanding leader",
+        "Charismatic",
+        "Spiritual interests"
+      ],
+      "challenges": [
+        "Fired from own company",
+        "Health issues"
+      ],
+      "major_events": [
+        "1976: Co-founded Apple Computer",
+        "1985: Forced out of Apple",
+        "1997: Returned to Apple as CEO",
+        "2001: Launched iPod",
+        "2007: Launched iPhone",
+        "2011: Passed away from pancreatic cancer"
+      ]
+    }
+  },
+  "Duplicate-QPQ9H0": {
+    "identity": "Oprah Winfrey",
+    "known_facts": {
+      "career": [
+        "Media mogul",
+        "Television host",
+        "Billionaire",
+        "Author"
+      ],
+      "personality": [
+        "Empathetic",
+        "Influential speaker",
+        "Philanthropist"
+      ],
+      "challenges": [
+        "Poverty in childhood",
+        "Never married"
+      ],
+      "major_events": [
+        "1986: The Oprah Winfrey Show nationally syndicated",
+        "1988: Founded Harpo Productions",
+        "1998: Co-founded Oxygen Media",
+        "2011: Ended talk show, launched OWN network",
+        "2013: Awarded Presidential Medal of Freedom"
+      ]
+    }
+  }
+}

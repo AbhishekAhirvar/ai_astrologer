@@ -206,3 +206,19 @@ generated_charts/
 cache/
 .gradio/
 test_outputs/
+
+# Blind Test Results
+tests/ai/blind_test/results/
+
+# Temporary Files
+*.tmp
+debug_*.py
+tests/ai/debug_*.py
+tests/ai/blind_test/reproduce_payload_issues.py
+tests/ai/blind_test/reproduce_issue.py
+
+# Raw JSON dumps
+*.json
+!tests/ai/blind_test/data/*.json
+!package.json
+!tsconfig.json

@@ -52,6 +52,7 @@ PLANET_IDS = {
 
 # Calculation Settings
 DEFAULT_AYANAMSA = swe.SIDM_LAHIRI
+KP_AYANAMSA = swe.SIDM_KRISHNAMURTI
 DEFAULT_HOUSE_SYSTEM = b'P' # Placidus (though we use Whole Sign for chart display, P is often default houses calc in swisseph)
 # Actually the code uses Whole Sign manually calculated from Ascendant degree.
 # But for `swe.houses` call in `astrology.py`: `houses = swe.houses(jd, lat, lon, b'P')`

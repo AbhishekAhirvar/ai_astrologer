@@ -29,7 +29,7 @@ chart_data = {
     'ketu': {'sign': 'Leo', 'degree': 12, 'house': 5, 'rules_houses': '-'},
 }
 
-async def test_suggestions(query, is_kp=False):
+async def run_suggestions(query, is_kp=False):
     mode = "KP" if is_kp else "Vedic"
     print(f"\n--- Testing {mode} Suggestions ---")
     print(">> Fetching Suggestions...")
@@ -39,7 +39,7 @@ async def test_suggestions(query, is_kp=False):
     except Exception as e:
         print(f"❌ Error: {e}")
 
-async def test_streaming_prediction(query, history=None, is_kp=False):
+async def run_streaming_prediction(query, history=None, is_kp=False):
     mode = "KP" if is_kp else "Vedic"
     history_str = f" (with {len(history)} history items)" if history else " (no history)"
     print(f"\n--- Testing {mode} Streaming Prediction{history_str} ---")
@@ -66,13 +66,13 @@ async def main():
     args = parser.parse_args()
     
     if args.suggestions_only:
-        await test_suggestions(args.query, is_kp=args.kp)
+        await run_suggestions(args.query, is_kp=args.kp)
     elif args.with_history:
         # Test 1: First query (no history)
         print("\n" + "="*60)
         print("TEST 1: First Query (No History)")
         print("="*60)
-        response1 = await test_streaming_prediction("Will I be rich?", history=None, is_kp=args.kp)
+        response1 = await run_streaming_prediction("Will I be rich?", history=None, is_kp=args.kp)
         
         if response1:
             # Test 2: Second query WITH history
@@ -83,15 +83,15 @@ async def main():
                 {"role": "user", "content": "Will I be rich?"},
                 {"role": "assistant", "content": response1}
             ]
-            response2 = await test_streaming_prediction("When will this happen?", history=history, is_kp=args.kp)
+            response2 = await run_streaming_prediction("When will this happen?", history=history, is_kp=args.kp)
             
             if response2:
                 print("\n" + "="*60)
                 print("✅ BOTH TESTS PASSED - History works!")
                 print("="*60)
     else:
-        await test_streaming_prediction(args.query, is_kp=args.kp)
-        await test_suggestions(args.query, is_kp=args.kp)
+        await run_streaming_prediction(args.query, is_kp=args.kp)
+        await run_suggestions(args.query, is_kp=args.kp)
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -8,9 +8,10 @@ class TestAstrologyValidation(unittest.TestCase):
         """Test valid input generates a chart."""
         # New Delhi
         chart = generate_vedic_chart("Test User", 2000, 1, 1, 12, 0, "Delhi", 28.7, 77.1)
-        self.assertNotIn('error', chart)
-        self.assertIn('sun', chart)
-        self.assertIn('ascendant', chart)
+        # Chart should be ChartResponse object, not error dict
+        self.assertNotIsInstance(chart, dict)  # Success returns ChartResponse, not dict
+        self.assertIn('sun', chart.planets)
+        self.assertIn('ascendant', chart.planets)
         
     def test_invalid_date(self):
         """Test invalid date inputs."""

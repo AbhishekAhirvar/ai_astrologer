@@ -1,9 +1,13 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Rectangle
+from functools import lru_cache
 import numpy as np
 import os
+import json
+import hashlib
 from datetime import datetime
+from backend.logger import logger
 from PIL import Image, ImageDraw, ImageFont
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -79,7 +83,16 @@ class NorthIndianChart:
                 flat_data['_metadata'] = self.chart_data.get('metadata', {})
                 self.chart_data = flat_data
         elif isinstance(chart_data, dict):
-            self.chart_data = chart_data
+            # Check if this is a JSON-deserialized ChartResponse structure
+            if 'planets' in chart_data and 'vargas' in chart_data:
+                # Flatten it the same way
+                flat_data = chart_data['planets'].copy()
+                flat_data.update(chart_data['vargas'])
+                flat_data['_metadata'] = chart_data.get('metadata', {})
+                self.chart_data = flat_data
+            else:
+                # Already flat dict
+                self.chart_data = chart_data
         else:
             # Try vars() or fail
             try:
@@ -594,30 +607,49 @@ class NakshatraTable:
         return output_path
 
 
-def generate_single_varga(chart_data, chart_type, person_name='', output_dir='./generated_charts'):
-    """Generate a single divisional chart on demand"""
+@lru_cache(maxsize=256)
+def generate_single_varga(chart_json: str, chart_type: str, person_name: str = '', output_dir: str = './generated_charts'):
+    """Generate a single divisional chart on demand with stable filenames."""
     os.makedirs(output_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Create a stable identifier based on chart data
+    data_hash = hashlib.md5(f"{chart_json}{chart_type}{person_name}".encode()).hexdigest()
+    output_path = f"{output_dir}/{person_name}_{chart_type}_{data_hash}.png"
+    
+    # If file exists, return it instead of re-rendering
+    if os.path.exists(output_path):
+        return output_path
     
     try:
+        chart_data = json.loads(chart_json)
         renderer = NorthIndianChart(chart_data, chart_type, person_name)
-        output_path = f"{output_dir}/{person_name}_{chart_type}_{timestamp}.png"
         renderer.render(output_path)
         return output_path
     except Exception as e:
         logger.error(f"Error generating {chart_type}: {e}")
         return None
 
+def get_chart_json(chart_data) -> str:
+    """Helper to convert chart data to JSON for caching."""
+    if hasattr(chart_data, 'dict'):
+        # Pydantic model - use dict() to get full structure
+        full_dict = chart_data.dict()
+        return json.dumps(full_dict, sort_keys=True, default=str)
+    if isinstance(chart_data, dict):
+        # Already a dict - serialize as-is (keep all keys including vargas)
+        return json.dumps(chart_data, sort_keys=True, default=str)
+    return "{}"
+
 def generate_all_charts(chart_data, person_name='', output_dir='./generated_charts'):
     """Generate primary divisional charts"""
     os.makedirs(output_dir, exist_ok=True)
     
     results = {}
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    chart_json = get_chart_json(chart_data)
     
     # Primary charts to generate by default
     for chart_type in ['D1', 'D9', 'D10', 'D12']:
-        results[chart_type] = generate_single_varga(chart_data, chart_type, person_name, output_dir)
+        results[chart_type] = generate_single_varga(chart_json, chart_type, person_name, output_dir)
     
     # Generate nakshatra table
     try:

@@ -1,0 +1,426 @@
+{
+  "test_subjects": [
+    {
+      "id": "Subject-6VUF87",
+      "birth_data": {
+        "year": 1955,
+        "month": 2,
+        "day": 24,
+        "hour": 19,
+        "minute": 15,
+        "lat": 37.7749,
+        "lon": -122.4194,
+        "timezone": "America/Los_Angeles",
+        "location_display": "Coordinates: 37.77\u00b0N, -122.43\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Steve Jobs",
+        "known_facts": {
+          "career": [
+            "Technology innovator",
+            "Founded Apple",
+            "Perfectionist",
+            "Visionary"
+          ],
+          "personality": [
+            "Demanding leader",
+            "Charismatic",
+            "Spiritual interests"
+          ],
+          "challenges": [
+            "Fired from own company",
+            "Health issues"
+          ],
+          "major_events": [
+            "1976: Co-founded Apple Computer",
+            "1985: Forced out of Apple",
+            "1997: Returned to Apple as CEO",
+            "2001: Launched iPod",
+            "2007: Launched iPhone",
+            "2011: Passed away from pancreatic cancer"
+          ]
+        }
+      },
+      "test_type": "famous_blind"
+    },
+    {
+      "id": "Subject-9SF921",
+      "birth_data": {
+        "year": 1954,
+        "month": 1,
+        "day": 29,
+        "hour": 7,
+        "minute": 50,
+        "lat": 33.0576,
+        "lon": -89.5876,
+        "timezone": "America/Chicago",
+        "location_display": "Coordinates: 33.05\u00b0N, -89.59\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Oprah Winfrey",
+        "known_facts": {
+          "career": [
+            "Media mogul",
+            "Television host",
+            "Billionaire",
+            "Author"
+          ],
+          "personality": [
+            "Empathetic",
+            "Influential speaker",
+            "Philanthropist"
+          ],
+          "challenges": [
+            "Poverty in childhood",
+            "Never married"
+          ],
+          "major_events": [
+            "1986: The Oprah Winfrey Show nationally syndicated",
+            "1988: Founded Harpo Productions",
+            "1998: Co-founded Oxygen Media",
+            "2011: Ended talk show, launched OWN network",
+            "2013: Awarded Presidential Medal of Freedom"
+          ]
+        }
+      },
+      "test_type": "famous_blind"
+    },
+    {
+      "id": "Subject-602FRM",
+      "birth_data": {
+        "year": 1971,
+        "month": 6,
+        "day": 28,
+        "hour": 7,
+        "minute": 30,
+        "lat": -25.7479,
+        "lon": 28.2293,
+        "timezone": "Africa/Johannesburg",
+        "location_display": "Coordinates: -25.76\u00b0N, 28.23\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Elon Musk",
+        "known_facts": {
+          "career": [
+            "Multi-entrepreneur",
+            "Technology pioneer",
+            "Space exploration",
+            "Electric vehicles"
+          ],
+          "personality": [
+            "Workaholic",
+            "Risk-taker",
+            "Controversial"
+          ],
+          "challenges": [
+            "Multiple divorces",
+            "Public controversies"
+          ],
+          "major_events": [
+            "1995: Founded Zip2",
+            "1999: Co-founded X.com (later PayPal)",
+            "2002: Founded SpaceX",
+            "2004: Joined Tesla as chairman",
+            "2008: Became Tesla CEO",
+            "2020: SpaceX successfully launched astronauts to ISS",
+            "2022: Acquired Twitter"
+          ]
+        }
+      },
+      "test_type": "famous_blind"
+    },
+    {
+      "id": "Subject-2O0X98",
+      "birth_data": {
+        "year": 1869,
+        "month": 10,
+        "day": 2,
+        "hour": 7,
+        "minute": 12,
+        "lat": 21.6417,
+        "lon": 69.6293,
+        "timezone": "Asia/Kolkata",
+        "location_display": "Coordinates: 21.65\u00b0N, 69.64\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Mahatma Gandhi",
+        "known_facts": {
+          "career": [
+            "Political leader",
+            "Independence movement",
+            "Non-violence philosophy",
+            "Lawyer"
+          ],
+          "personality": [
+            "Peaceful",
+            "Principled",
+            "Ascetic",
+            "Spiritual"
+          ],
+          "challenges": [
+            "Assassinated",
+            "Long struggle"
+          ],
+          "major_events": [
+            "1893: Experienced racism in South Africa",
+            "1915: Returned to India from South Africa",
+            "1930: Led Salt March (Dandi March)",
+            "1942: Launched Quit India Movement",
+            "1947: India gained independence",
+            "1948: Assassinated in New Delhi"
+          ]
+        }
+      },
+      "test_type": "famous_blind"
+    },
+    {
+      "id": "Subject-1LV76F",
+      "birth_data": {
+        "year": 1879,
+        "month": 3,
+        "day": 14,
+        "hour": 11,
+        "minute": 30,
+        "lat": 48.4011,
+        "lon": 9.9876,
+        "timezone": "Europe/Berlin",
+        "location_display": "Coordinates: 48.40\u00b0N, 9.98\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Albert Einstein",
+        "known_facts": {
+          "career": [
+            "Physicist",
+            "Nobel Prize",
+            "Theory of relativity",
+            "Professor"
+          ],
+          "personality": [
+            "Unconventional thinker",
+            "Pacifist",
+            "Curious"
+          ],
+          "challenges": [
+            "Struggled in school",
+            "Fled Nazi Germany"
+          ],
+          "major_events": [
+            "1905: Published groundbreaking papers (Annus Mirabilis)",
+            "1915: Completed general theory of relativity",
+            "1921: Awarded Nobel Prize in Physics",
+            "1933: Emigrated to US fleeing Nazi regime",
+            "1939: Signed letter to Roosevelt about atomic weapons",
+            "1955: Passed away in Princeton"
+          ]
+        }
+      },
+      "test_type": "famous_blind"
+    },
+    {
+      "id": "Control-U42QZL",
+      "birth_data": {
+        "year": 1959,
+        "month": 3,
+        "day": 5,
+        "hour": 21,
+        "minute": 1,
+        "lat": 19.4326,
+        "lon": -99.1332,
+        "timezone": "UTC",
+        "location_display": "Coordinates: 19.43\u00b0N, -99.13\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Fictional Person (No Real Biography)",
+        "known_facts": {}
+      },
+      "test_type": "fictional_control"
+    },
+    {
+      "id": "Control-43UPQL",
+      "birth_data": {
+        "year": 1983,
+        "month": 12,
+        "day": 7,
+        "hour": 16,
+        "minute": 50,
+        "lat": 19.076,
+        "lon": 72.8777,
+        "timezone": "UTC",
+        "location_display": "Coordinates: 19.08\u00b0N, 72.88\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Fictional Person (No Real Biography)",
+        "known_facts": {}
+      },
+      "test_type": "fictional_control"
+    },
+    {
+      "id": "Duplicate-IIVXL0",
+      "birth_data": {
+        "year": 1955,
+        "month": 2,
+        "day": 24,
+        "hour": 19,
+        "minute": 15,
+        "lat": 37.7749,
+        "lon": -122.4194,
+        "timezone": "America/Los_Angeles",
+        "location_display": "Coordinates: 37.77\u00b0N, -122.43\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Steve Jobs",
+        "known_facts": {
+          "career": [
+            "Technology innovator",
+            "Founded Apple",
+            "Perfectionist",
+            "Visionary"
+          ],
+          "personality": [
+            "Demanding leader",
+            "Charismatic",
+            "Spiritual interests"
+          ],
+          "challenges": [
+            "Fired from own company",
+            "Health issues"
+          ],
+          "major_events": [
+            "1976: Co-founded Apple Computer",
+            "1985: Forced out of Apple",
+            "1997: Returned to Apple as CEO",
+            "2001: Launched iPod",
+            "2007: Launched iPhone",
+            "2011: Passed away from pancreatic cancer"
+          ]
+        }
+      },
+      "test_type": "duplicate_control",
+      "duplicate_of": "Subject-6VUF87"
+    },
+    {
+      "id": "Duplicate-QPQ9H0",
+      "birth_data": {
+        "year": 1954,
+        "month": 1,
+        "day": 29,
+        "hour": 7,
+        "minute": 50,
+        "lat": 33.0576,
+        "lon": -89.5876,
+        "timezone": "America/Chicago",
+        "location_display": "Coordinates: 33.05\u00b0N, -89.59\u00b0E"
+      },
+      "test_questions": [
+        "What is my primary life purpose?",
+        "What are my natural talents and abilities?",
+        "Will I achieve recognition in my field?",
+        "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+        "What major challenges will I face in life?",
+        "What is my leadership potential?"
+      ],
+      "ground_truth": {
+        "identity": "Oprah Winfrey",
+        "known_facts": {
+          "career": [
+            "Media mogul",
+            "Television host",
+            "Billionaire",
+            "Author"
+          ],
+          "personality": [
+            "Empathetic",
+            "Influential speaker",
+            "Philanthropist"
+          ],
+          "challenges": [
+            "Poverty in childhood",
+            "Never married"
+          ],
+          "major_events": [
+            "1986: The Oprah Winfrey Show nationally syndicated",
+            "1988: Founded Harpo Productions",
+            "1998: Co-founded Oxygen Media",
+            "2011: Ended talk show, launched OWN network",
+            "2013: Awarded Presidential Medal of Freedom"
+          ]
+        }
+      },
+      "test_type": "duplicate_control",
+      "duplicate_of": "Subject-9SF921"
+    }
+  ],
+  "metadata": {
+    "generated_at": "2026-01-09T16:28:13.493182",
+    "total_subjects": 9,
+    "famous_people": 5,
+    "fictional_controls": 2,
+    "duplicate_controls": 2,
+    "questions_per_subject": 6,
+    "total_predictions_needed": 54
+  }
+}

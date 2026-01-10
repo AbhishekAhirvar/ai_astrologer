@@ -17,7 +17,7 @@ While this is a pure Python project, the "Heavy Lifting" is done by C.
 
 **Performance Implication**:
 *   Calls to `swisseph.*` are fast ($O(1)$) but cross the C-API boundary (GIL overhead).
-*   AI interpretation is asynchronous and streamed to minimize perceived latency.
+*   Calls to `varga_charts.py` are pure Python loop-heavy operations.
 
 > **Architecture Quiz (Q1)**:
 > In `app.py`, we store `user_requests = defaultdict(list)` as a global in-memory state.
