@@ -4,7 +4,10 @@ import hashlib
 from backend.location import get_location_data
 from backend.astrology import generate_vedic_chart
 from backend.ai import get_astrology_prediction_stream, get_followup_questions
-from backend.chart_renderer import generate_all_charts, generate_single_varga
+from backend.chart_renderer import generate_all_charts, generate_single_varga, get_chart_json
+from backend.shadbala_renderer import create_shadbala_plots
+from backend.dasha_renderer import create_dasha_html
+
 from backend.table_renderer import create_planetary_table_image, create_detailed_nakshatra_table
 from backend.logger import logger
 import time
@@ -12,6 +15,8 @@ from collections import defaultdict
 from PIL import Image, ImageDraw, ImageFont
 import os
 from datetime import datetime
+
+# Table generation logic moved to backend.table_renderer
 
 user_requests = defaultdict(list)
 MAX_REQUESTS_PER_MINUTE = 10
@@ -45,12 +50,10 @@ def cleanup_old_charts(directory, max_age_seconds=3600):
         except Exception as e:
             logger.error(f"Error deleting {file_path}: {e}")
 
-# Table generation logic moved to backend.table_renderer
-
 async def generate_report(name, gender, dob_date, dob_time, place_name):
     """Generate birth chart with all tables (Async + Cached)"""
     if not all([name, dob_date, dob_time, place_name]):
-        return "⚠️ All fields are required!", None, None, None, None, None
+        return "⚠️ All fields are required!", None, None, None, None, None, None, None
     
     cache_key = get_report_cache_key(name, dob_date, dob_time, place_name)
     if cache_key in REPORT_CACHE:
@@ -70,7 +73,7 @@ async def generate_report(name, gender, dob_date, dob_time, place_name):
                 dob_dt = datetime.strptime(clean_date, fmt)
                 break
             except ValueError: continue
-        if not dob_dt: return "❌ Invalid Date format.", None, None, None, None
+        if not dob_dt: return "❌ Invalid Date format.", None, None, None, None, None, None, None
         year, month, day = dob_dt.year, dob_dt.month, dob_dt.day
         dob_date = dob_dt.strftime("%Y-%m-%d")
 
@@ -81,14 +84,19 @@ async def generate_report(name, gender, dob_date, dob_time, place_name):
         # Async Location Lookup
         loc_data = await get_location_data(place_name)
         if not loc_data:
-            return f"❌ Location '{place_name}' not found.", None, None, None, None
+            return f"❌ Location '{place_name}' not found.", None, None, None, None, None, None, None
         lat, lon, address = loc_data
 
-        # Blocking chart gen in thread
-        chart = await asyncio.to_thread(generate_vedic_chart, name, year, month, day, hour, minute, place_name, lat, lon)
-        if '_metadata' in chart: chart['_metadata']['gender'] = gender
+        # Blocking chart gen in thread (Enable All Features)
+        chart = await asyncio.to_thread(
+            generate_vedic_chart, 
+            name, year, month, day, hour, minute, place_name, 
+            lat, lon, "Asia/Kolkata"
+        )
+        if hasattr(chart, 'metadata'): chart.metadata.gender = gender
+        elif '_metadata' in chart: chart['_metadata']['gender'] = gender
         
-        # Blocking chart rendering in thread
+        # Blocking chart rendering
         chart_images = await asyncio.to_thread(generate_all_charts, chart, person_name=name, output_dir=CHARTS_DIR)
         
         timestamp = int(time.time())
@@ -98,17 +106,33 @@ async def generate_report(name, gender, dob_date, dob_time, place_name):
         await asyncio.to_thread(create_planetary_table_image, chart, table_path)
         await asyncio.to_thread(create_detailed_nakshatra_table, chart, nak_table_path)
 
+        # New Visualizations - Generate on-the-fly
+        from backend.shadbala import calculate_shadbala_for_chart
+        from backend.dasha_system import VimshottariDashaSystem
+        import pytz
+        import swisseph as swe
+        
+        # Calculate Shadbala
+        shadbala_data = await asyncio.to_thread(calculate_shadbala_for_chart, chart)
+        shadbala_img, _ = await asyncio.to_thread(create_shadbala_plots, chart, CHARTS_DIR, shadbala_data)
+        
+        # Calculate Complete Dasha
+        dasha_sys = VimshottariDashaSystem()
+        now_utc = datetime.now(pytz.UTC)
+        cur_jd = swe.julday(now_utc.year, now_utc.month, now_utc.day, now_utc.hour + now_utc.minute/60.0)
+        birth_jd = swe.julday(year, month, day, hour + minute/60.0)
+        moon_pos = chart.planets['moon'].abs_pos
+        complete_dasha = await asyncio.to_thread(dasha_sys.calculate_complete_dasha, moon_pos, birth_jd, cur_jd)
+        dasha_html_content = await asyncio.to_thread(create_dasha_html, complete_dasha)
+
+        # Summary Text
         if hasattr(chart, 'planets'):
             moon_data = chart.planets.get('moon')
             moon_naks = moon_data.nakshatra if moon_data and hasattr(moon_data, 'nakshatra') else {}
-        else:
-            moon_naks = chart['moon'].get('nakshatra', {})
-        
-        # Metadata access
-        if hasattr(chart, 'metadata'):
             metadata = chart.metadata
             name_val = getattr(metadata, 'name', 'User')
-        else:
+        else: # Dict fallback
+            moon_naks = chart['moon'].get('nakshatra', {})
             metadata = chart.get('_metadata', {})
             name_val = metadata.get('name', 'User')
 
@@ -117,15 +141,16 @@ async def generate_report(name, gender, dob_date, dob_time, place_name):
         d1_img = chart_images.get('D1')
         
         # Pre-generate D9 for faster initial display
-        d9_img = await asyncio.to_thread(generate_single_varga, chart, "D9", person_name=name_val, output_dir=CHARTS_DIR)
+        chart_json = get_chart_json(chart)
+        d9_img = await asyncio.to_thread(generate_single_varga, chart_json, "D9", person_name=name_val, output_dir=CHARTS_DIR)
         
-        result = (summary_text, table_path, nak_table_path, d1_img, chart, d9_img)
+        result = (summary_text, table_path, nak_table_path, d1_img, chart, d9_img, shadbala_img, dasha_html_content)
         REPORT_CACHE[cache_key] = result
         return result
 
     except Exception as e:
         logger.exception(f"Error in generate_report: {e}")
-        return f"⚠️ Error: {str(e)}", None, None, None, None, None
+        return f"⚠️ Error: {str(e)}", None, None, None, None, None, None, None
 
 def update_varga_display(chart_data, varga_type):
     """Update varga chart image based on dropdown selection"""
@@ -134,10 +159,7 @@ def update_varga_display(chart_data, varga_type):
     
     # Map label to chart key
     mapping = {
-        "D1 Rasi": "D1",
-        "Moon Chart": "Moon",
-        "Sun Chart": "Sun",
-        "Arudha Lagna": "Arudha"
+        "D1 Rasi": "D1", "Moon Chart": "Moon", "Sun Chart": "Sun", "Arudha Lagna": "Arudha"
     }
     
     chart_code = mapping.get(varga_type)
@@ -145,16 +167,15 @@ def update_varga_display(chart_data, varga_type):
         # Extract D number from string like "D9 Navamsa" -> "D9"
         chart_code = varga_type.split(' ')[0]
     
-    
     # Handle object or dict
     if hasattr(chart_data, 'metadata'):
         name = getattr(chart_data.metadata, 'name', 'User')
     else:
         name = chart_data.get('_metadata', {}).get('name', 'User')
-        
-    img_path = generate_single_varga(chart_data, chart_code, person_name=name, output_dir=CHARTS_DIR)
+    
+    chart_json = get_chart_json(chart_data)
+    img_path = generate_single_varga(chart_json, chart_code, person_name=name, output_dir=CHARTS_DIR)
     return img_path
-
 
 
 # Custom CSS for proper textbox rendering
@@ -164,6 +185,9 @@ custom_css = """
 .gradio-container input[type="date"] {
     line-height: 1.5 !important;
     padding: 8px 12px !important;
+}
+th, td {
+    padding: 8px !important; 
 }
 """
 
@@ -199,7 +223,7 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
             
             chart_summary = gr.Markdown()
             
-            # Charts in TABS (not all at once)
+            # Charts in TABS
             with gr.Tabs():
                 with gr.Tab("📋 Planetary Positions"):
                     planetary_table_img = gr.Image(label="Planetary Positions Table", height=450)
@@ -209,6 +233,12 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                 
                 with gr.Tab("🎯 D1 - Rasi Chart"):
                     d1_chart = gr.Image(label="D1 Birth Chart", height=500)
+                
+                with gr.Tab("💪 Shadbala Strength"):
+                    shadbala_chart_img = gr.Image(label="Shadbala Bar Chart", height=500)
+                    
+                with gr.Tab("⏳ Dasha Timeline"):
+                    dasha_html = gr.HTML(label="Vimshottari Dasha Analysis")
                 
                 with gr.Tab("💠 Divisional Charts (Vargas)"):
                     with gr.Row():
@@ -229,6 +259,15 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
         
         # TAB 2: Vedic AI Chat
         with gr.Tab("🕉️ Vedic AI Chat"):
+            # Bot Mode Selector
+            gr.Markdown("### 🤖 AI Mode Selection")
+            vedic_bot_mode = gr.Radio(
+                choices=["PRO (Accuracy)", "LITE (Tokens)", "LEGACY (Classic)"],
+                value="PRO (Accuracy)",
+                label="Bot Mode",
+                info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
+            )
+            
             with gr.Row():
                 # SIDEBAR (Left)
                 with gr.Column(scale=1):
@@ -269,6 +308,15 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
         # TAB 3: KP AI Chat
         with gr.Tab("🧭 KP AI Chat"):
+            # Bot Mode Selector
+            gr.Markdown("### 🤖 AI Mode Selection")
+            kp_bot_mode = gr.Radio(
+                choices=["PRO (Accuracy)", "LITE (Tokens)", "LEGACY (Classic)"],
+                value="PRO (Accuracy)",
+                label="Bot Mode",
+                info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
+            )
+            
             with gr.Row():
                 # SIDEBAR (Left)
                 with gr.Column(scale=1):
@@ -303,111 +351,127 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
                     kp_msg = gr.Textbox(label="Ask KP Astrology", placeholder="Ask using Krishnamurti Paddhati rules...", scale=7)
 
 
+    async def handle_chat_input(user_input, history, chart_data, is_kp=False, bot_mode_ui="PRO (Accuracy)"):
+        """Unified chat entry point with streaming and memory"""
+        if not chart_data:
+            history.append({"role": "user", "content": user_input})
+            history.append({"role": "assistant", "content": "⚠️ Please generate a birth chart first!"})
+            yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
+            return
+        
+        if not check_rate_limit():
+            history.append({"role": "user", "content": user_input})
+            history.append({"role": "assistant", "content": "⚠️ Rate limit exceeded."})
+            yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
+            return
+        
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY")
+        if api_key:
+            api_key = api_key.strip()
+        
+        # Parse bot mode from UI
+        if "LITE" in bot_mode_ui:
+            bot_mode = "lite"
+        elif "LEGACY" in bot_mode_ui:
+            bot_mode = "legacy"
+        else:  # PRO
+            bot_mode = "pro"
+        
+        # Setup UI
+        history.append({"role": "user", "content": user_input})
+        history.append({"role": "assistant", "content": ""})
+        yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
 
-            async def handle_chat_input(user_input, history, chart_data, is_kp=False):
-                """Unified chat entry point with streaming and memory"""
-                if not chart_data:
-                    history.append({"role": "user", "content": user_input})
-                    history.append({"role": "assistant", "content": "⚠️ Please generate a birth chart first!"})
-                    yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
-                    return
-                
-                if not check_rate_limit():
-                    history.append({"role": "user", "content": user_input})
-                    history.append({"role": "assistant", "content": "⚠️ Rate limit exceeded."})
-                    yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
-                    return
-                
-                api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY")
-                if api_key:
-                    api_key = api_key.strip()
-                
-                # Setup UI
-                history.append({"role": "user", "content": user_input})
-                history.append({"role": "assistant", "content": ""})
+        # 1. Stream Prediction and Fetch Suggestions in Parallel
+        try:
+            # Use legacy mode if selected (with custom system instruction)
+            if bot_mode == "legacy":
+                from backend.ai import OMKAR_SYSTEM_INSTRUCTION_V2, OMKAR_SYSTEM_INSTRUCTION
+                system_instr = OMKAR_SYSTEM_INSTRUCTION_V2 if is_kp else OMKAR_SYSTEM_INSTRUCTION
+                stream_gen = get_astrology_prediction_stream(
+                    chart_data, user_input, api_key=api_key, history=history[:-2], 
+                    is_kp_mode=is_kp, system_instruction=system_instr
+                )
+            else:
+                # Use new 4-bot system
+                stream_gen = get_astrology_prediction_stream(
+                    chart_data, user_input, api_key=api_key, history=history[:-2], 
+                    is_kp_mode=is_kp, bot_mode=bot_mode
+                )
+            sug_task = asyncio.create_task(get_followup_questions(api_key=api_key, chart_data=chart_data, is_kp_mode=is_kp, history=history))
+
+            full_text = ""
+            async for chunk in stream_gen:
+                full_text += chunk
+                history[-1]["content"] = full_text
                 yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
+        except Exception as e:
+            logger.error(f"Stream error: {e}")
+            history[-1]["content"] = f"⚠️ AI Error: {str(e)}. Please check your quota or try again later."
+            yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
+            return
 
-                # 1. Stream Prediction and Fetch Suggestions in Parallel
-                try:
-                    stream_gen = get_astrology_prediction_stream(chart_data, user_input, api_key=api_key, history=history[:-2], is_kp_mode=is_kp)
-                    sug_task = asyncio.create_task(get_followup_questions(api_key=api_key, chart_data=chart_data, is_kp_mode=is_kp))
+        # 2. Update Suggestions after stream finishes
+        try:
+            suggestions = await sug_task
+        except Exception as e:
+            logger.error(f"Suggestions error: {e}")
+            suggestions = ["What does this mean?", "Any remedies?", "Future outlook?"]
 
-                    full_text = ""
-                    async for chunk in stream_gen:
-                        full_text += chunk
-                        history[-1]["content"] = full_text
-                        # Yield updates for all outputs to ensure rendering in Gradio 6
-                        yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
-                except Exception as e:
-                    logger.error(f"Stream error: {e}")
-                    history[-1]["content"] = f"⚠️ AI Error: {str(e)}. Please check your quota or try again later."
-                    yield history, "", gr.Button(visible=False), gr.Button(visible=False), gr.Button(visible=False)
-                    return
+        yield history, "", gr.Button(value=suggestions[0], visible=True), gr.Button(value=suggestions[1], visible=True), gr.Button(value=suggestions[2], visible=True)
 
-                # 2. Update Suggestions after stream finishes
-                try:
-                    suggestions = await sug_task
-                except Exception as e:
-                    logger.error(f"Suggestions error: {e}")
-                    suggestions = ["What does this mean?", "Any remedies?", "Future outlook?"]
+    # Wrappers
+    async def vedic_chat_handler(u, h, c, bm):
+        async for res in handle_chat_input(u, h, c, False, bm):
+            yield res
 
-                s1 = gr.Button(suggestions[0], visible=True)
-                s2 = gr.Button(suggestions[1], visible=True)
-                s3 = gr.Button(suggestions[2], visible=True)
-                yield history, "", s1, s2, s3
+    async def kp_chat_handler(u, h, c, bm):
+        async for res in handle_chat_input(u, h, c, True, bm):
+            yield res
 
-            # Wrappers
-            async def vedic_chat_handler(u, h, c):
-                async for res in handle_chat_input(u, h, c, False):
-                    yield res
+    # VEDIC EVENTS
+    v_msg.submit(
+        vedic_chat_handler,
+        [v_msg, v_chatbot, chart_state, vedic_bot_mode], 
+        [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
+    )
+    for qb in vedic_q_btns:
+        qb.click(
+            vedic_chat_handler,
+            [qb, v_chatbot, chart_state, vedic_bot_mode],
+            [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
+        )
+    for sb in [v_s_btn1, v_s_btn2, v_s_btn3]:
+        sb.click(
+            vedic_chat_handler,
+            [sb, v_chatbot, chart_state, vedic_bot_mode],
+            [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
+        )
 
-            async def kp_chat_handler(u, h, c):
-                async for res in handle_chat_input(u, h, c, True):
-                    yield res
-
-            # VEDIC EVENTS
-            v_msg.submit(
-                vedic_chat_handler,
-                [v_msg, v_chatbot, chart_state], 
-                [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
-            )
-            for qb in vedic_q_btns:
-                qb.click(
-                    vedic_chat_handler,
-                    [qb, v_chatbot, chart_state],
-                    [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
-                )
-            for sb in [v_s_btn1, v_s_btn2, v_s_btn3]:
-                sb.click(
-                    vedic_chat_handler,
-                    [sb, v_chatbot, chart_state],
-                    [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
-                )
-
-            # KP EVENTS
-            kp_msg.submit(
-                kp_chat_handler,
-                [kp_msg, kp_chatbot, chart_state], 
-                [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
-            )
-            for qb in kp_q_btns:
-                qb.click(
-                    kp_chat_handler,
-                    [qb, kp_chatbot, chart_state],
-                    [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
-                )
-            for sb in [kp_s_btn1, kp_s_btn2, kp_s_btn3]:
-                sb.click(
-                    kp_chat_handler,
-                    [sb, kp_chatbot, chart_state],
-                    [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
-                )
+    # KP EVENTS
+    kp_msg.submit(
+        kp_chat_handler,
+        [kp_msg, kp_chatbot, chart_state, kp_bot_mode], 
+        [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
+    )
+    for qb in kp_q_btns:
+        qb.click(
+            kp_chat_handler,
+            [qb, kp_chatbot, chart_state, kp_bot_mode],
+            [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
+        )
+    for sb in [kp_s_btn1, kp_s_btn2, kp_s_btn3]:
+        sb.click(
+            kp_chat_handler,
+            [sb, kp_chatbot, chart_state, kp_bot_mode],
+            [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
+        )
     
     # Wire generate button
     generate_btn.click(
         generate_report,
         [name, gender, dob_date, dob_time, place_name],
-        [chart_summary, planetary_table_img, nakshatra_detailed_img, d1_chart, chart_state, varga_chart_img],
+        [chart_summary, planetary_table_img, nakshatra_detailed_img, d1_chart, chart_state, varga_chart_img, shadbala_chart_img, dasha_html],
         show_progress="minimal"
     )
     
@@ -420,4 +484,4 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(share=False, server_name="0.0.0.0", server_port=7860, css=custom_css)
+    demo.launch(share=True, server_name="0.0.0.0", server_port=7860, css=custom_css)
