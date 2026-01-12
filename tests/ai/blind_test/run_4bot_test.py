@@ -273,5 +273,5 @@ async def generate_4bot_html(results: Dict, output_file: Path):
     print(f"HTML report: {output_file}")
 
 
-if __name == "__main__":
+if __name__ == "__main__":
     asyncio.run(run_4bot_blind_test(num_subjects=2))

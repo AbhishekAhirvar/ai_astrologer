@@ -21,8 +21,7 @@ import json
 chart = generate_vedic_chart(
     name="Test User", year=1990, month=5, day=15,
     hour=10, minute=30, city="Delhi",
-    lat=28.6139, lon=77.2090, timezone_str="Asia/Kolkata",
-    include_kp_data=True, include_complete_dasha=True
+    lat=28.6139, lon=77.2090, timezone_str="Asia/Kolkata"
 )
 
 query = "Will I succeed in my career?"
