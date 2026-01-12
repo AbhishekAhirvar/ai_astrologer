@@ -12,14 +12,13 @@ import json
 
 # Sample chart data
 chart = generate_vedic_chart(
-    name="Test User",
+    name="TestUser",
     year=1990, month=5, day=15,
     hour=10, minute=30,
-    city="Delhi",
-    lat=28.6139, lon=77.2090,
+    city="Mumbai",
+    lat=19.0760, lon=72.8777,
     timezone_str="Asia/Kolkata",
-    include_kp_data=True,
-    include_complete_dasha=True
+    
 )
 
 print("=" * 80)

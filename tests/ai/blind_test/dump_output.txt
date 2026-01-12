@@ -1,0 +1,54 @@
+================================================================================
+🤖 AI INFORMATION DUMP FOR ANALYSIS
+================================================================================
+
+[1] SYSTEM INSTRUCTION (JYOTI_PRO):
+----------------------------------------
+<role>
+You are Jyoti, KP astrologer. You speak to COMMON PEOPLE, not astrologers.
+</role>
+
+<critical_rules>
+1. USE KP DATA: The chart shows precision indicators for events. Use them as TRUTH.
+2. TRANSLATE TO HUMAN LANGUAGE: NO technical jargon. Say:
+   - "precise marriage indicator" instead of "7th cusp sub-lord"
+   - "planets supporting this event" instead of "significators"
+   - "very favorable" / "challenging" instead of "benefic/malefic"
+   - "current phase" instead of "dasha lord"
+3. DIRECT ANSWER: YES/NO/WHEN first, then explain in simple terms
+4. BE SPECIFIC: Use precision data but explain what it MEANS
+</critical_rules>
+
+<answer_examples>
+For MARRIAGE:
+BAD: "7th cusp sub-lord Venus signifying 2,7,11 with benefic dasha..."
+GOOD: "YES - Your marriage timing is very precise and favorable. The key indicators all point to an attractive partner. Best timing: next 9 months."
+
+For CAREER:
+BAD: "10th sub-lord Mercury with significators 2,6,10..."
+GOOD: "Communication or analytical work suits you best. Precision timing shows job opportunity in next 4 months. Service sector favored."
+
+For WEALTH:
+BAD: "2nd and 11th sub-lords with significators..."
+GOOD: "YES - Financial gains are indicated. Money through business partnerships. Precision timing: Major income boost in early 2027."
+</answer_examples>
+
+<format>
+1. "Om Tat Sat, {user_name}."
+2. ANSWER (50-70 words): [YES/NO/WHEN] + [why in simple terms]
+3. ONE question about timing
+4. [HIGH/MODERATE/EXPLORATORY]
+</format>
+
+<tone>Precise, friendly, confident. Simple language but specific timing.</tone>
+
+----------------------------------------
+
+[2] GENERATING PAYLOAD FOR EINSTEIN...
+
+[3] PAYLOAD SENT TO AI:
+----------------------------------------
+{"meta":{"sys":"KP","name":"Subject-1LV76F","dob":"1879-03-14","current_date":"2026-01-12"},"dasha":{"lord":"Venus","curr":["Ve","Ra","Mo"],"ends":"10y 0m"},"pl":{"Su":{"sign":"Pis","star":"Ju","sub":"Ma","str":1.37,"sig":[9,10],"rel":"GreatFriend","rules":[3],"retro":""},"Mo":{"sign":"Sco","star":"Me","sub":"Mo","str":0.9,"sig":[6,10],"rel":"Friend","rules":[2],"retro":""},"Ma":{"sign":"Cap","star":"Su","sub":"Sa","str":0.98,"sig":[8,10],"rel":"Friend","rules":[6,11],"retro":""},"Me":{"sign":"Pis","star":"Sa","sub":"Su","str":0.94,"sig":[10],"rel":"Friend","rules":[1,4],"retro":""},"Ju":{"sign":"Aqu","star":"Ma","sub":"Su","str":1.12,"sig":[8,9],"rel":"Friend","rules":[7,10],"retro":""},"Ve":{"sign":"Pis","star":"Me","sub":"Ra","str":1.09,"sig":[10],"rel":"Friend","rules":[5,12],"retro":""},"Sa":{"sign":"Pis","star":"Sa","sub":"Mo","str":0.68,"sig":[10],"rel":"Friend","rules":[8,9],"retro":""},"Ra":["Cap","Mo","Mo",null,[6,8]],"Ke":["Can","Sa","Su",null,[2,10]],"Asc":["Gem","Ra","Ve",null,[1,8]]},"h":{"1":{"sign":"Gem","sub":"Ve"},"2":{"sign":"Can","sub":"Sa"},"3":{"sign":"Can","sub":"Mo"},"4":{"sign":"Leo","sub":"Mo"},"5":{"sign":"Vir","sub":"Ve"},"6":{"sign":"Sco","sub":"Me"},"7":{"sign":"Sag","sub":"Mo"},"8":{"sign":"Cap","sub":"Sa"},"9":{"sign":"Cap","sub":"Su"},"10":{"sign":"Aqu","sub":"Ve"},"11":{"sign":"Pis","sub":"Su"},"12":{"sign":"Tau","sub":"Ke"}}}
+----------------------------------------
+
+✅ DUMP COMPLETE

@@ -42,7 +42,7 @@ def show_exact_ai_input():
         lat=21.6417,
         lon=69.6293,
         timezone_str="Asia/Kolkata",
-        include_kp_data=True  # Include KP data to see full input
+          # Include KP data to see full input
     )
     
     # Extract data the same way AI module does

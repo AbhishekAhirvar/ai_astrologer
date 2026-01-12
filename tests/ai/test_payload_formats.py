@@ -16,6 +16,8 @@ from backend.ai import (
     JYOTI_LITE_SYSTEM
 )
 import json
+from backend.shadbala import calculate_shadbala_for_chart
+from backend.schemas import ShadbalaData
 
 # Generate test chart
 chart = generate_vedic_chart(
@@ -23,6 +25,10 @@ chart = generate_vedic_chart(
     hour=10, minute=30, city="Delhi",
     lat=28.6139, lon=77.2090, timezone_str="Asia/Kolkata"
 )
+
+# Manually add Shadbala so PRO builders generate dicts instead of lists
+shadbala_scores = calculate_shadbala_for_chart(chart)
+chart.shadbala = ShadbalaData(total_shadbala=shadbala_scores)
 
 query = "Will I succeed in my career?"
 
@@ -110,15 +116,17 @@ print("  - focus: topic")
 
 print("\nActual payload structure:")
 print(f"  ✓ dasha: {list(payload.get('dasha', {}).keys())}")
-print(f"  ✓ planets (sample Sun): {list(payload.get('planets', {}).get('Sun', {}).keys())}")
+# OMKAR_PRO uses lowercase planet names (sun, moon, etc)
+sample_p = list(payload.get('planets', {}).keys())[0] if payload.get('planets') else 'sun'
+print(f"  ✓ planets (sample {sample_p}): {list(payload.get('planets', {}).get(sample_p, {}).keys())}")
 print(f"  ✓ focus: {payload.get('focus', 'N/A')}")
 print(f"\n  Size: {len(payload_str)} chars")
 
 # Validation
 checks = []
 checks.append(("dasha has 'lord'", 'lord' in payload.get('dasha', {})))
-checks.append(("Sun has 'verdict'", 'verdict' in payload.get('planets', {}).get('Sun', {})))
-checks.append(("Sun has 'nak' (nakshatra)", 'nak' in payload.get('planets', {}).get('Sun', {})))
+checks.append((f"{sample_p} has 'verdict'", 'verdict' in payload.get('planets', {}).get(sample_p, {})))
+checks.append((f"{sample_p} has 'nak' (nakshatra)", 'nak' in payload.get('planets', {}).get(sample_p, {})))
 checks.append(("focus shows topic", payload.get('focus') == 'career'))
 
 print("\nFormat validation:")

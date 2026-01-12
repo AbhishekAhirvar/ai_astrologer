@@ -277,11 +277,28 @@ async def quick_blind_test(api_key: str, num_subjects: int = 2, is_kp_mode: bool
         print("   Run test_data_generator.py first!")
         return
     
-    with open(dataset_file, 'r') as f:
-        dataset = json.load(f)
-    
-    # Test only first N subjects
-    test_subjects = dataset["test_subjects"][:num_subjects]
+    # test_subjects = dataset["test_subjects"][:num_subjects]
+    test_subjects = [
+        {
+            "id": "Subject-1LV76F",  # Albert Einstein
+            "test_type": "famous_blind",
+            "birth_data": {
+                "year": 1879, "month": 3, "day": 14,
+                "hour": 11, "minute": 30,
+                "location_display": "Ulm, Germany",
+                "lat": 48.4011, "lon": 9.9876,
+                "timezone": "Europe/Berlin"
+            },
+            "test_questions": [
+                "What is my primary life purpose?",
+                "What are my natural talents and abilities?",
+                "Will I achieve recognition in my field?",
+                "Looking at my entire life journey from birth to present, identify all major years where my path shifted significantly or I had massive breakthroughs. For each, explain the astrological reason and the theme of the event.",
+                "What major challenges will I face in life?",
+                "What is my leadership potential?"
+            ]
+        }
+    ]
     
     print(f"\n📊 Testing {num_subjects} subjects with {bot_name}:")
     for subject in test_subjects:
@@ -325,6 +342,116 @@ async def quick_blind_test(api_key: str, num_subjects: int = 2, is_kp_mode: bool
     
     return results
 
+async def run_comprehensive_test(api_key: str):
+    """
+    Run comprehensive blind test on Michael Peterson with all 4 bots.
+    Captures full payload and token usage.
+    """
+    print("\n" + "="*80)
+    print("🚀 COMPREHENSIVE BLIND TEST (Michael Peterson - AA Rated)")
+    print("="*80)
+    
+    # Michael Peterson (The Staircase) - AA Rated
+    subject = {
+        "id": "Subject-MP1943", 
+        "test_type": "famous_criminal_blind",
+        "birth_data": {
+            "year": 1943, "month": 10, "day": 23,
+            "hour": 4, "minute": 22,
+            "location_display": "Tullahoma, TN, USA",
+            "lat": 35.3620, "lon": -86.2064,
+            "timezone": "America/Chicago"
+        },
+        "test_questions": [
+            # "What major challenges will I face in life?",
+            # "Will I achieve recognition in my field?",
+            "Looking at my entire life journey, identify major years of crisis or breakthrough.",
+            # "What is my nature regarding partnerships and conflict?"
+        ]
+    }
+    
+    # 4 Configurations
+    configs = [
+        {"name": "OMKAR_PRO", "is_kp": False, "mode": "pro"},
+        {"name": "OMKAR_LITE", "is_kp": False, "mode": "lite"},
+        {"name": "JYOTI_PRO", "is_kp": True, "mode": "pro"},
+        {"name": "JYOTI_LITE", "is_kp": True, "mode": "lite"},
+    ]
+    
+    results = []
+    
+    # Generate common chart once (optimization)
+    print(f"\n📊 Subject: {subject['id']} (Born {subject['birth_data']['year']})")
+    
+    for cfg in configs:
+        print(f"\n🤖 Running Bot: {cfg['name']}...")
+        
+        # We need to manually call get_astrology_prediction here to pass return_debug_info
+        # OR we modify run_blind_prediction. 
+        # Modifying run_blind_prediction is cleaner but requires signature change.
+        # Let's just do it inline here to be safe and explicit.
+        
+        # 1. Generate Chart (Anonymous)
+        bd = subject["birth_data"]
+        chart = generate_vedic_chart(subject["id"], bd["year"], bd["month"], bd["day"], bd["hour"], bd["minute"], bd["location_display"], bd["lat"], bd["lon"], bd["timezone"])
+        chart.shadbala = ShadbalaData(total_shadbala=calculate_shadbala_for_chart(chart))
+        
+        dasha_sys = VimshottariDashaSystem()
+        from datetime import datetime
+        now_utc = datetime.now(pytz.UTC)
+        cur_jd = calculate_julian_day(now_utc.year, now_utc.month, now_utc.day, now_utc.hour, now_utc.minute, "UTC")
+        birth_jd = calculate_julian_day(bd["year"], bd["month"], bd["day"], bd["hour"], bd["minute"], bd["timezone"])
+        chart.complete_dasha = dasha_sys.calculate_complete_dasha(chart.planets['moon'].abs_pos, birth_jd, cur_jd)
+        
+        if cfg["is_kp"]:
+             pp_positions = {p: {"longitude": pos.abs_pos} for p, pos in chart.planets.items()}
+             if hasattr(chart, 'ascendant') and chart.ascendant:
+                 pp_positions['ascendant'] = {"longitude": chart.ascendant}
+             chart.kp_data = KPData(**generate_kp_data(birth_jd, bd["lat"], bd["lon"], pp_positions, chart.planets['moon'].abs_pos))
+             
+        bot_predictions = []
+        for q in subject["test_questions"]:
+            print(f"   - asking: {q[:30]}...")
+            response = await get_astrology_prediction(
+                chart_data=chart,
+                user_query=q,
+                api_key=api_key,
+                is_kp_mode=cfg["is_kp"],
+                bot_mode=cfg["mode"],
+                return_debug_info=True # CAPTURE PAYLOAD
+            )
+            
+            # Handle potential error if response is string (legacy fallback)
+            if isinstance(response, str):
+                bot_predictions.append({"q": q, "a": response, "usage": {}, "payload": "N/A"})
+            else:
+               bot_predictions.append({
+                   "q": q, 
+                   "a": response["prediction"], 
+                   "usage": response["usage"], 
+                   "payload": response["payload"]
+               })
+            await asyncio.sleep(1)
+
+        results.append({
+            "bot": cfg["name"],
+            "preds": bot_predictions
+        })
+
+    # Save detailed comprehensive results
+    out_file = Path(__file__).parent / "results" / f"comprehensive_MP_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(out_file, 'w') as f:
+        json.dump(results, f, indent=2)
+        
+    print(f"\n✅ Comprehensive Test Complete!")
+    print(f"📁 Saved raw JSON: {out_file}")
+    
+    # Call report generator (we will create this next)
+    # from generate_detailed_report import generate_html_report
+    # generate_html_report(out_file)
+    print("ℹ️  Run generate_detailed_report.py to see HTML.")
+    return out_file
+
 
 if __name__ == "__main__":
     api_key = os.getenv("OPENAI_API_KEY")
@@ -347,6 +474,9 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "quick":
         # Quick test mode
         asyncio.run(quick_blind_test(api_key, num_subjects=2))
+    elif len(sys.argv) > 1 and sys.argv[1] == "comprehensive":
+        # Comprehensive test mode
+        asyncio.run(run_comprehensive_test(api_key))
     else:
         # Full test mode
         print("\n⚠️  About to run FULL blind test (all subjects)")

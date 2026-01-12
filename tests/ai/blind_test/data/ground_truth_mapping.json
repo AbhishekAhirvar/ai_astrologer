@@ -83,6 +83,35 @@
       ]
     }
   },
+  "Subject-EM71SA": {
+    "identity": "Elon Musk",
+    "known_facts": {
+      "career": [
+        "Multi-entrepreneur",
+        "Technology pioneer",
+        "Space exploration",
+        "Electric vehicles"
+      ],
+      "personality": [
+        "Workaholic",
+        "Risk-taker",
+        "Controversial"
+      ],
+      "challenges": [
+        "Multiple divorces",
+        "Public controversies"
+      ],
+      "major_events": [
+        "1995: Founded Zip2",
+        "1999: Co-founded X.com (later PayPal)",
+        "2002: Founded SpaceX",
+        "2004: Joined Tesla as chairman",
+        "2008: Became Tesla CEO",
+        "2020: SpaceX successfully launched astronauts to ISS",
+        "2022: Acquired Twitter"
+      ]
+    }
+  },
   "Subject-2O0X98": {
     "identity": "Mahatma Gandhi",
     "known_facts": {

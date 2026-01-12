@@ -39,8 +39,8 @@ async def test_single_question():
         lat=37.77,
         lon=-122.43,
         timezone_str="America/Los_Angeles",
-        include_kp_data=True,
-        include_complete_dasha=True
+        
+        
     )
     
     print("✅ Chart generated successfully\n")

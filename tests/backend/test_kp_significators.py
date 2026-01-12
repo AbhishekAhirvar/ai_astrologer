@@ -23,7 +23,7 @@ import json
 @pytest.fixture
 def sample_chart():
     """Generate a sample chart for testing."""
-    return generate_vedic_chart(
+    chart = generate_vedic_chart(
         name="TestUser",
         year=1990,
         month=5,
@@ -33,10 +33,33 @@ def sample_chart():
         city="Mumbai",
         lat=19.0760,
         lon=72.8777,
-        timezone_str="Asia/Kolkata",
-        include_kp_data=True,
-        include_complete_dasha=True
+        timezone_str="Asia/Kolkata"
     )
+    
+    # Manually add KP Data & Dasha
+    from backend.kp_calculations import generate_kp_data
+    from backend.dasha_system import VimshottariDashaSystem
+    from backend.shadbala import calculate_shadbala_for_chart
+    from backend.schemas import KPData, ShadbalaData
+    import swisseph as swe
+    
+    # 1. Shadbala
+    shadbala_scores = calculate_shadbala_for_chart(chart)
+    chart.shadbala = ShadbalaData(total_shadbala=shadbala_scores)
+    
+    # 2. KP Data
+    jd = swe.julday(1990, 5, 15, 10.5) 
+    moon_lon = chart.planets['moon'].abs_pos
+    pl_pos = {p: {'longitude': data.abs_pos} for p, data in chart.planets.items()}
+    kp_raw = generate_kp_data(jd, 19.0760, 72.8777, pl_pos, moon_lon)
+    chart.kp_data = KPData(**kp_raw)
+    
+    # 3. Dasha
+    dasha_sys = VimshottariDashaSystem()
+    cur_jd = swe.julday(2026, 1, 12, 12.0)
+    chart.complete_dasha = dasha_sys.calculate_complete_dasha(moon_lon, jd, cur_jd)
+    
+    return chart
 
 
 class TestSignificatorEngine:

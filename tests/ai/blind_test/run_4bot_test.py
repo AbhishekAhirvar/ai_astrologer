@@ -45,8 +45,8 @@ async def run_4bot_prediction(subject: Dict[str, Any], api_key: str, bot_mode: s
         city=birth_data["location_display"],
         lat=birth_data["lat"], lon=birth_data["lon"],
         timezone_str=birth_data["timezone"],
-        include_kp_data=True,
-        include_complete_dasha=True
+        
+        
     )
     
     predictions = []

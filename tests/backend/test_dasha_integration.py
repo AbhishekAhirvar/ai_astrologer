@@ -14,9 +14,17 @@ def test_chart_generation_with_dasha():
     chart = generate_vedic_chart(
         name="Test Dasha", year=1990, month=1, day=1,
         hour=12, minute=0, city="New Delhi",
-        lat=28.6, lon=77.2,
-        include_complete_dasha=True
+        lat=28.6, lon=77.2
     )
+    
+    # Manually calculate and attach dasha
+    from backend.dasha_system import VimshottariDashaSystem
+    import swisseph as swe
+    dasha_sys = VimshottariDashaSystem()
+    birth_jd = swe.julday(1990, 1, 1, 12.0)
+    cur_jd = birth_jd + 365.25 * 34 # 34 years later
+    moon_pos = chart.planets['moon'].abs_pos
+    chart.complete_dasha = dasha_sys.calculate_complete_dasha(moon_pos, birth_jd, cur_jd)
     
     # verify response structure
     assert isinstance(chart, ChartResponse)
@@ -49,7 +57,6 @@ def test_chart_generation_without_dasha():
     chart = generate_vedic_chart(
         name="Test No Dasha", year=1990, month=1, day=1,
         hour=12, minute=0, city="New Delhi",
-        lat=28.6, lon=77.2,
-        include_complete_dasha=False
+        lat=28.6, lon=77.2
     )
     assert chart.complete_dasha is None

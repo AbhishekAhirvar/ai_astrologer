@@ -29,7 +29,7 @@ def dump_accurate_payloads():
         city="Coordinates: 37.77N, -122.42E",
         lat=37.77, lon=-122.42,
         timezone_str="America/Los_Angeles",
-        include_kp_data=True
+        
     )
 
     query = "What is my primary life purpose?"

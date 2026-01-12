@@ -31,7 +31,7 @@ def extract_full_payloads():
         hour=19, minute=15,
         city="San Francisco", lat=37.77, lon=-122.42,
         timezone_str="America/Los_Angeles",
-        include_kp_data=True
+        
     )
 
     user_query = "What is my primary life purpose?"

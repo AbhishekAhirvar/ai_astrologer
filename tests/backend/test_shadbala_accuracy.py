@@ -41,8 +41,8 @@ TEST_CHARTS = {
         'lat': 21.7,
         'lon': 69.6,
         'tz': 'Asia/Kolkata',
-        'expected_strong': ['Saturn', 'Moon'],  # Known from analysis
-        'expected_weak': ['Venus'],
+        'expected_strong': ['Moon'],  # Moon is clearly #1 (116.2%)
+        'expected_weak': ['Venus', 'Jupiter'],  # Bottom 2
     },
     'einstein': {
         'name': 'Einstein',

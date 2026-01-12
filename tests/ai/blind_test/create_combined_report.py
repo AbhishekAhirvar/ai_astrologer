@@ -207,8 +207,6 @@ def generate_combined_html(prediction_files: List[Path], output_path: Path, grou
                     <tr>
                         <th>Configuration</th>
                         <th>Semantic Accuracy</th>
-                        <th>Trait Overlap</th>
-                        <th>Specificity</th>
                         <th>Consistency</th>
                         <th>Verdict</th>
                     </tr>
@@ -230,8 +228,6 @@ def generate_combined_html(prediction_files: List[Path], output_path: Path, grou
                     <tr>
                         <td><span class="bot-name bot-{bot_slug}">{bot_name}</span></td>
                         <td><span class="score-pill {sem_class}">{m["semantic"]:.1f}/100</span></td>
-                        <td><span class="score-pill {ov_class}">{m["overlap"]:.1f}%</span></td>
-                        <td><span class="score-pill {spec_class}">{m["specificity"]:.2f}</span></td>
                         <td><span class="score-pill {cons_class}">{m["consistency"]:.1f}%</span></td>
                         <td><strong style="color: {verdict_color};">{verdict}</strong></td>
                     </tr>
@@ -309,8 +305,6 @@ def generate_combined_html(prediction_files: List[Path], output_path: Path, grou
             <h2>📈 Global Performance Averages</h2>
             <div class="eval-grid">
                 <div class="eval-card"><div style="font-size:0.8em;">Semantic Accuracy</div><div class="eval-value">{avg_total_semantic:.1f}</div></div>
-                <div class="eval-card"><div style="font-size:0.8em;">Avg Trait Overlap</div><div class="eval-value">{avg_total_overlap:.1f}%</div></div>
-                <div class="eval-card"><div style="font-size:0.8em;">Specificity Score</div><div class="eval-value">{avg_total_spec:.2f}</div></div>
                 <div class="eval-card"><div style="font-size:0.8em;">Bot Consistency</div><div class="eval-value">{avg_total_consist:.1f}%</div></div>
             </div>
         </div>

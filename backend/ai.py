@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 from typing import Dict, List, Any, Optional
+from datetime import datetime
 from openai import OpenAI
 from backend.logger import logger
 from dotenv import load_dotenv
@@ -27,6 +28,29 @@ def get_openai_client(api_key: str) -> OpenAI:
     This reuses the internal connection pool (httpx client) across requests.
     """
     return OpenAI(api_key=api_key)
+
+def jd_to_date(jd):
+    """Convert Julian Day to date string."""
+    import swisseph as swe
+    y, m, d, h = swe.revjul(jd)
+    return f"{y}-{m:02d}-{d:02d}"
+
+def _extract_user_name(chart_data: Any) -> str:
+    """Safely extract user name from chart data object or dict."""
+    if isinstance(chart_data, dict):
+        # Handle dict input (e.g. detailed payload)
+        if "meta" in chart_data and "name" in chart_data["meta"]:
+            return chart_data["meta"]["name"]
+        return chart_data.get("name", "User")
+        
+    # Handle Pydantic model
+    if hasattr(chart_data, 'name'):
+        return chart_data.name
+    # Handle legacy schema
+    if hasattr(chart_data, 'subject_name'):
+        return chart_data.subject_name
+        
+    return "User"
 
 def format_planetary_data(chart_data: Dict[str, Any]) -> str:
     """
@@ -140,7 +164,7 @@ OMKAR_SYSTEM_INSTRUCTION = (
     "GROUNDING: If the user query is COMPLETELY unrelated to astrology, life path, or personal destiny (e.g., coding, recipes, math, sports), politely refuse as Omkar. "
     "If it is SLIGHTLY related or can be linked to their journey (e.g., life challenges, general advice), guide them back to their stars and answer from an astrological perspective. "
     "IF VALID: Answer directly with wisdom. Mention 1-2 key planets maximum ONLY if critical to the answer. "
-    "Focus on WHAT will happen and WHEN, not technical details. "
+    "Focus on what user asked why he is asking, to give information he needed not just what he asked, not technical details. "
     "Give concrete timing and actionable advice. "
     "TONE: Sacred, profound, absolute. Speak as a Sage who KNOWS."
     "Be wise, and compassionate."
@@ -161,9 +185,10 @@ RULES:
 2. DESCRIBE TRAITS: Focus on describing the user's personality traits, natural tendencies, and life patterns according to astrology.
 3. MINIMAL JARGON: You may mention planet names (e.g., Saturn, Jupiter) if helpful, but limit to at most 2 mentions. Do NOT mention zodiac signs or house numbers unless explicitly asked.
 4. SACRED TONE: Speak as a helpful and compassionate Sage. Use clear, warm language that feels both wise and practical.
-5. Be specific: Give predictions with concrete timing (months/years) and actionable outcomes using common words.
-6. LENGTH: 100 words or less.
-7. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+5. TIMING: For past events, calculate CALENDAR YEARS from birth data (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
+6. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
+7. LENGTH: 100 words or less.
+8. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
 
 PAYLOAD LEGEND:
 - "meta": User identity and system type.
@@ -183,12 +208,13 @@ Tone: Sacred, Warm, wise, practical, compassionate, helpful.
 OMKAR_LITE_SYSTEM = """You are Omkar, a wise, helpful, and compassionate Vedic Sage. 
 
 RULES:
-1. DESCRIBE TRAITS: Focus on describing the user's personality traits,destiny, natural tendencies, and life patterns according to astrology.
+1. DESCRIBE TRAITS: Focus on describing the user's personality traits, destiny, natural tendencies, and life patterns according to astrology.
 2. MINIMAL JARGON: You may mention planet names if helpful (max 2 mentions). Do NOT mention zodiac signs or house numbers unless asked.
 3. SACRED VOICE: Speak as a helpful and compassionate Sage in simple but profound language.
-4. Be specific: Give predictions with timing and outcomes using common words.
-5. LENGTH: 100 words or less.
-6. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+4. TIMING: For past events, use CALENDAR YEARS (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
+5. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
+6. LENGTH: 100 words or less.
+7. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
 
 PAYLOAD LEGEND:
 - "D:A>B>C/XyYm": Dasha hierarchy (Maha>Antar>Pratyantar) / years and months remaining.
@@ -209,9 +235,10 @@ RULES:
 2. DESCRIBE TRAITS: Focus on describing the user's personality traits and life patterns with precision.
 3. MINIMAL JARGON: You may mention planet names if helpful (max 2 mentions). Do NOT mention zodiac signs or house numbers unless asked.
 4. SACRED TONE: Speak as a helpful and compassionate Sage. Use clear, warm language that feels both wise and practical.
-5. Be specific: Give predictions with concrete timing (months/years) and actionable outcomes using common words.
-6. LENGTH: 100 words or less.
-7. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+5. TIMING: For past events, calculate CALENDAR YEARS from birth data (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
+6. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
+7. LENGTH: 100 words or less.
+8. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
 
 PAYLOAD LEGEND:
 - "pl": Planet data including sign, star, sub, and strength (str).
@@ -230,11 +257,13 @@ Tone: Sacred, Precise, wise, practical, helpful, compassionate.
 JYOTI_LITE_SYSTEM = """You are Omkar, a wise, helpful, and compassionate Sage of precision.
 
 RULES:
-1. DESCRIBE TRAITS: Focus on describing the user's personality traits,destiny, natural tendencies, and life patterns clearly.
+1. DESCRIBE TRAITS: Focus on describing the user's personality traits, destiny, natural tendencies, and life patterns clearly.
 2. MINIMAL JARGON: You may mention planet names if helpful (max 2 mentions). Do NOT mention zodiac signs or house numbers unless asked.
 3. Speak as a helpful and compassionate Sage. Be precise with exact timing and life traits.
-4. LENGTH: 100 words or less.
-5. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+4. TIMING: For past events, use CALENDAR YEARS (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
+5. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
+6. LENGTH: 100 words or less.
+7. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
 
 PAYLOAD LEGEND:
 - "pl": Planet data including sign, star, sub, and significators.
@@ -257,20 +286,14 @@ def _build_optimized_json_context(chart_data: Any) -> str:
     """
     payload = {}
     
-    # Meta information (Age instead of DOB)
+    # Meta information
     if hasattr(chart_data, 'metadata'):
-        age = None
-        if hasattr(chart_data.metadata, 'year'):
-            birth_year = chart_data.metadata.year
-            current_year = 2026  # Current year
-            age = current_year - birth_year
-        
         payload["meta"] = {
             "sys": "KP" if chart_data.kp_data else "Vedic",
-            "name": getattr(chart_data.metadata, 'name', 'User')
+            "name": getattr(chart_data.metadata, 'name', 'User'),
+            "dob": getattr(chart_data.metadata, 'datetime', '').split(' ')[0], # Extract YYYY-MM-DD
+            "current_date": datetime.now().strftime('%Y-%m-%d')  # FIX: Temporal awareness
         }
-        if age:
-            payload["meta"]["age"] = age
     
     # Dasha information (human-readable delta instead of Julian)
     if hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha:
@@ -283,7 +306,8 @@ def _build_optimized_json_context(chart_data: Any) -> str:
         if curr.maha_dasha:
             hierarchy.append(PLANET_CODES.get(curr.maha_dasha.lord, curr.maha_dasha.lord[:2]))
             # Calculate human-readable delta
-            current_jd = swe.julday(2026, 1, 9, 12.0)  # Current date
+            now = datetime.now()
+            current_jd = swe.julday(now.year, now.month, now.day, 12.0)  # Dynamic current date
             delta_days = curr.maha_dasha.end_jd - current_jd
             if delta_days > 0:
                 years = int(delta_days / 365.25)
@@ -366,6 +390,56 @@ def get_strength_verdict(shadbala: float) -> str:
         return "Weak"
 
 
+def normalize_shadbala_ratio(shadbala: float) -> float:
+    """
+    Normalize Shadbala score to a ratio where 1.0 is average.
+    Average Shadbala is ~350, so we divide by 350.
+    Returns a float like 1.32 (strong) or 0.93 (weak).
+    """
+    AVERAGE_SHADBALA = 350.0
+    if shadbala == 0:
+        return 0.0
+    return round(shadbala / AVERAGE_SHADBALA, 2)
+
+
+def expand_relationship(rel_abbrev: str) -> str:
+    """
+    Expand relationship abbreviation to full word to prevent AI hallucination.
+    Examples: 'Gre' -> 'GreatFriend', 'Fri' -> 'Friend', 'Ene' -> 'Enemy'
+    """
+    relationship_map = {
+        'Gre': 'GreatFriend',
+        'Fri': 'Friend',
+        'Neu': 'Neutral',
+        'Ene': 'Enemy',
+        'Bit': 'BitterEnemy'
+    }
+    return relationship_map.get(rel_abbrev, rel_abbrev)
+
+
+def parse_house_rules(rules_str: str) -> list:
+    """
+    Parse house rules string to integer array.
+    Examples: '2nd, 11th' -> [2, 11], '5th' -> [5], '' -> []
+    """
+    if not rules_str or rules_str == '-':
+        return []
+    
+    # Remove 'st', 'nd', 'rd', 'th' suffixes and split by comma
+    import re
+    cleaned = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', rules_str)
+    parts = [p.strip() for p in cleaned.split(',')]
+    
+    result = []
+    for part in parts:
+        try:
+            result.append(int(part))
+        except ValueError:
+            continue
+    
+    return result
+
+
 def _calculate_dasha_balance(complete_dasha) -> str:
     """Calculate dasha balance in years/months from end_jd."""
     try:
@@ -403,6 +477,7 @@ def _build_kp_lite_payload(chart_data: Any) -> str:
 
 def _build_kp_pro_payload(chart_data: Any, user_query: str = "") -> str:
     """Build enriched KP payload for JYOTI_PRO (accuracy-optimized)."""
+    from datetime import datetime
     from backend.kp_significators import build_optimized_planet_payload, build_optimized_house_payload
     
     question_type = detect_question_type(user_query)
@@ -421,42 +496,36 @@ def _build_kp_pro_payload(chart_data: Any, user_query: str = "") -> str:
             planet_obj = chart_data.planets.get(p_name.lower()) or chart_data.planets.get(p_name)
             
         if len(data) >= 4 and data[3] is not None:  # Has Shadbala
-            verdict = get_strength_verdict(data[3])
             pl_payload[code] = {
                 "sign": data[0],
                 "star": data[1],
                 "sub": data[2],
-                "str": data[3],
+                "str": normalize_shadbala_ratio(data[3]),
                 "sig": data[4],
-                "verdict": verdict,
-                "rel": getattr(planet_obj, 'relationship', '')[:3] if planet_obj else "",
-                "rules": getattr(planet_obj, 'rules_houses', '') if planet_obj else "",
+                "rel": expand_relationship(getattr(planet_obj, 'relationship', '')[:3]) if planet_obj else "",
+                "rules": parse_house_rules(getattr(planet_obj, 'rules_houses', '')) if planet_obj else [],
                 "retro": "R" if getattr(planet_obj, 'is_retrograde', False) else ""
             }
     
-    # Add verdicts for houses
+    # Format houses
     for num, data in h_payload.items():
         h_payload[num] = {
             "sign": data[0],
-            "sub": data[1],
-            "verdict": "Favorable" if data[1] in ["Ju", "Ve", "Me"] else "Challenging"
+            "sub": data[1]
         }
     
-    # Dasha verdict
-    dasha_verdict = "Favorable"
-    if hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha:
-        lord = chart_data.complete_dasha.current_state.maha_dasha.lord if chart_data.complete_dasha.current_state.maha_dasha else "Unknown"
-        if lord in ["Saturn", "Mars", "Rahu", "Ketu"]:
-            dasha_verdict = "Challenging"
-    
-    meta = {"sys": "KP", "name": _extract_user_name(chart_data)}
+    meta = {
+        "sys": "KP", 
+        "name": _extract_user_name(chart_data),
+        "dob": getattr(chart_data.metadata, 'datetime', '').split(' ')[0] if hasattr(chart_data, 'metadata') else "Unknown",
+        "current_date": datetime.now().strftime('%Y-%m-%d')  # FIX: Temporal awareness
+    }
     dasha_info = {
         "lord": chart_data.complete_dasha.current_state.maha_dasha.lord if (hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha and chart_data.complete_dasha.current_state.maha_dasha) else "Unknown",
         "curr": [chart_data.complete_dasha.current_state.maha_dasha.lord[:2] if (hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha and chart_data.complete_dasha.current_state.maha_dasha) else "?",
                  chart_data.complete_dasha.current_state.antar_dasha.lord[:2] if (hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha and chart_data.complete_dasha.current_state.antar_dasha) else "?",
                  chart_data.complete_dasha.current_state.pratyantar_dasha.lord[:2] if (hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha and chart_data.complete_dasha.current_state.pratyantar_dasha) else "?"],
-        "ends": _calculate_dasha_balance(chart_data.complete_dasha) if (hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha and chart_data.complete_dasha.current_state.maha_dasha) else "N/A",
-        "verdict": dasha_verdict
+        "ends": _calculate_dasha_balance(chart_data.complete_dasha) if (hasattr(chart_data, 'complete_dasha') and chart_data.complete_dasha and chart_data.complete_dasha.current_state.maha_dasha) else "N/A"
     }
     
     payload = {"meta": meta, "dasha": dasha_info, "pl": pl_payload, "h": h_payload}
@@ -517,10 +586,15 @@ def _build_parashara_lite_payload(chart_data: Any) -> str:
 
 def _build_parashara_pro_payload(chart_data: Any, user_query: str = "") -> str:
     """Build enriched Parashara payload for OMKAR_PRO (accuracy-optimized)."""
+    from datetime import datetime
     question_type = detect_question_type(user_query)
     
     # Meta
-    meta = {"name": _extract_user_name(chart_data)}
+    meta = {
+        "name": _extract_user_name(chart_data),
+        "dob": getattr(chart_data.metadata, 'datetime', '').split(' ')[0] if hasattr(chart_data, 'metadata') else "Unknown",
+        "current_date": datetime.now().strftime('%Y-%m-%d')  # FIX: Temporal awareness
+    }
     
     # Dasha
     dasha_info = {}
@@ -567,10 +641,9 @@ def _build_parashara_pro_payload(chart_data: Any, user_query: str = "") -> str:
                     "house": getattr(data, 'house', '?'),
                     "nak": nak_short,
                     "karaka": karaka,
-                    "str": shadbala,
-                    "verdict": get_strength_verdict(shadbala) if shadbala else "N/A",
-                    "rel": relationship[:3] if relationship else "",
-                    "rules": houses_ruled if houses_ruled else "",
+                    "str": normalize_shadbala_ratio(shadbala),
+                    "rel": expand_relationship(relationship[:3]) if relationship else "",
+                    "rules": parse_house_rules(houses_ruled) if houses_ruled else [],
                     "retro": "R" if getattr(data, 'is_retrograde', False) else ""
                 }
     
@@ -802,7 +875,7 @@ async def get_astrology_prediction_stream(chart_data, user_query, api_key, histo
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
-async def get_astrology_prediction(chart_data, user_query, api_key, history=None, is_kp_mode=False, system_instruction=None, bot_mode="pro"):
+async def get_astrology_prediction(chart_data, user_query, api_key, history=None, is_kp_mode=False, system_instruction=None, bot_mode="pro", return_debug_info=False):
     """
     Sends essential chart data and query to OpenAI GPT-5 nano with history support.
     Grounding logic is handled by the system instruction.
@@ -852,6 +925,9 @@ async def get_astrology_prediction(chart_data, user_query, api_key, history=None
                     user_prompt = f"CHART_DATA: {payload}\n\nQuestion: {user_query}"
                 
                 messages.append(_format_openai_message("user", user_prompt))
+                
+                # Debug info capture
+                debug_payload = user_prompt
                 
                 logger.info(f"📤 {bot_mode.upper()} PAYLOAD (first 400 chars): {user_prompt[:400]}...")
         

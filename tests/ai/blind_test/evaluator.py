@@ -90,30 +90,75 @@ def calculate_specificity_score(predictions: List[str]) -> float:
     return specificity_count / len(predictions) if predictions else 0
 
 
+def get_ai_consistency_score(text1: str, text2: str) -> Tuple[float, str]:
+    """
+    Use AI to evaluate semantic consistency between two predictions.
+    Returns (score 0-100, reasoning)
+    """
+    """
+    if True:  # USER REQUEST: AI Auditor disabled to save tokens
+        return 0.0, "AI Audit Disabled"
+
+    api_key = os.getenv("OPENAI_API_KEY")
+
+        You are an expert auditor of AI stability.
+        
+        PREDICTION SET A (Original):
+        "{text1[:4000]}"
+        
+        PREDICTION SET B (Duplicate Run):
+        "{text2[:4000]}"
+        
+        TASK:
+        Evaluate how consistent the astrological advice is between the two runs.
+        Ignore minor wording differences. Focus on:
+        1. Are the key themes identical? (e.g. both say "career in tech")
+        2. Are the warnings similar? (e.g. both warn about "health in 2026")
+        3. Is the overall tone and advice stable?
+        
+        SCORING:
+        0-20: Completely different advice (hallucination/instability).
+        21-60: Some overlap but significant contradictions or missing points.
+        61-80: Good consistency, slight variations in focus.
+        81-100: Highly stable, identical core message.
+        
+        OUTPUT JSON:
+        {{
+            "score": <0-100>,
+            "reasoning": "<short explanation>"
+        }}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5-nano",
+            messages=[
+                {"role": "system", "content": [{"text": "You are a consistency auditor. Output JSON only.", "type": "text"}]},
+                {"role": "user", "content": [{"text": prompt, "type": "text"}]}
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        result_text = response.choices[0].message.content
+        if isinstance(result_text, list):
+            result_text = result_text[0].get('text', '{}')
+            
+        result = json.loads(result_text)
+        return float(result.get("score", 0)), result.get("reasoning", "")
+    except Exception as e:
+        print(f"⚠️ AI Consistency Check Error: {e}")
+        return 0.0, f"Error: {str(e)}"
+
 def evaluate_consistency(predictions1: List[str], predictions2: List[str]) -> float:
     """
     Evaluate consistency between two sets of predictions for same chart
-    Uses simple word overlap
+    Uses AI Semantic Consistency
     """
-    text1 = " ".join(predictions1).lower()
-    text2 = " ".join(predictions2).lower()
+    text1 = " ".join(predictions1)
+    text2 = " ".join(predictions2)
     
-    words1 = set(text1.split())
-    words2 = set(text2.split())
-    
-    # Remove common words
-    common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'your', 'you', 'this', 'that', 'these', 'those'}
-    
-    words1 = words1 - common_words
-    words2 = words2 - common_words
-    
-    if not words1 or not words2:
-        return 0.0
-    
-    overlap = len(words1 & words2)
-    total = len(words1 | words2)
-    
-    return (overlap / total) * 100 if total > 0 else 0.0
+    score, reasoning = get_ai_consistency_score(text1, text2)
+    return score
 
 
 def calculate_event_accuracy(predictions: List[str], major_events: List[str]) -> Dict[str, Any]:
@@ -157,14 +202,12 @@ def get_ai_semantic_score(prediction_text: str, known_facts: List[str]) -> Tuple
     Use AI to evaluate how well a prediction matches known facts.
     Returns (score 0-100, reasoning)
     """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return 0.0, "API key missing"
+    """
+    if True:  # USER REQUEST: AI Auditor disabled to save tokens
+        return 0.0, "AI Audit Disabled"
 
-    client = OpenAI(api_key=api_key)
-    facts_str = "\n".join([f"- {f}" for f in known_facts])
-    
-    prompt = f"""
+    api_key = os.getenv("OPENAI_API_KEY")
+
         You are an expert impartial auditor of astrological predictions.
         
         GROUND TRUTH FACTS for the subject:
