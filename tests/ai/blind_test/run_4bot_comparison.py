@@ -17,12 +17,13 @@ import os
 load_dotenv()
 
 
-async def run_4bot_comparison(num_subjects: int = 2):
+async def run_4bot_comparison(num_subjects: int = 2, question_idx: int = None):
     """
     Run blind test with all 4 bots for comparison
     
     Args:
         num_subjects: Number of subjects to test (default: 2)
+        question_idx: If provided, only test this specific question index (0-indexed)
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -61,7 +62,8 @@ async def run_4bot_comparison(num_subjects: int = 2):
             api_key=api_key,
             num_subjects=num_subjects,
             is_kp_mode=is_kp,
-            bot_mode=mode
+            bot_mode=mode,
+            target_question_idx=question_idx
         )
         
         results[bot_name] = result
@@ -108,16 +110,19 @@ async def run_4bot_comparison(num_subjects: int = 2):
     
     return results
 
-
 if __name__ == "__main__":
-    # Parse command line args
     num_subjects = 2
     if len(sys.argv) > 1:
         try:
             num_subjects = int(sys.argv[1])
         except ValueError:
-            print(f"Invalid argument: {sys.argv[1]}")
-            print("Usage: python run_4bot_comparison.py [num_subjects]")
-            sys.exit(1)
-    
-    asyncio.run(run_4bot_comparison(num_subjects))
+            print(f"Invalid num subjects: {sys.argv[1]}")
+            
+    question_idx = None
+    if len(sys.argv) > 2:
+        try:
+            question_idx = int(sys.argv[2])
+        except ValueError:
+            print(f"Invalid question index: {sys.argv[2]}")
+            
+    asyncio.run(run_4bot_comparison(num_subjects, question_idx))

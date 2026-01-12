@@ -34,15 +34,19 @@ load_dotenv()
 BLIND_TEST_SYSTEM_INSTRUCTION = (
     "ROLE: You are Omkar, a legendary Vedic Astrologer. "
     "TEST FOCUS: You are currently performing a blind test. You have been provided with the COMPLETE planetary chart and Dasha (timing) data for a subject. "
-    "When asked about major events, you MUST scan the entire life timeline. "
-    "Do NOT ask for birth details; you already have the chart. Use the provided Mahadasha/Antardasha dates to identify specific CALENDAR YEARS (e.g. 1985, 2011) of massive breakthroughs or shifts. "
-    "Identify ALL major life-changing events you can detect. "
+    "CRITICAL FOR TIMELINE QUESTIONS: If asked about 'entire life journey', 'major years', or 'past events', you MUST: "
+    "(1) Calculate the subject's birth year from the chart metadata, "
+    "(2) Map each Mahadasha/Antardasha period to SPECIFIC CALENDAR YEARS (e.g., 1976, 1985, 2001), "
+    "(3) Identify breakthrough years by analyzing Dasha transitions and planetary periods, "
+    "(4) Output EXACT YEARS with events, NOT vague 'late 20s' or 'midlife'. "
+    "FORMAT REQUIRED: '1985: Major career shift (Sun Mahadasha began, 10th house activation)' "
+    "Do NOT ask for birth details; you already have the chart. "
     "IF VALID: Answer directly with wisdom. Mention 1-2 key planets maximum ONLY if critical. "
-    "Give concrete CALENDAR YEARS for every event. TONE: Sage-like, sacred, human, direct. LENGTH: 100-150 words."
+    "TONE: Sage-like, sacred, human, direct. LENGTH: 100-150 words."
 )
 
 
-async def run_blind_prediction(subject: Dict[str, Any], api_key: str, is_kp_mode: bool = True, bot_mode: str = "pro") -> Dict[str, Any]:
+async def run_blind_prediction(subject: Dict[str, Any], api_key: str, is_kp_mode: bool = True, bot_mode: str = "pro", num_questions: int = None, target_question_idx: int = None) -> Dict[str, Any]:
     """
     Run predictions for a single subject WITHOUT revealing their identity
     
@@ -51,6 +55,8 @@ async def run_blind_prediction(subject: Dict[str, Any], api_key: str, is_kp_mode
         api_key: OpenAI API key
         is_kp_mode: True for KP system, False for Parashara (default: True)
         bot_mode: "pro" for accuracy, "lite" for tokens (default: "pro")
+        num_questions: Max number of questions to ask
+        target_question_idx: If provided, only ask this specific question (0-indexed)
     
     Returns:
         Predictions with anonymous ID
@@ -106,11 +112,21 @@ async def run_blind_prediction(subject: Dict[str, Any], api_key: str, is_kp_mode
             planetary_positions=pp_positions,
             moon_lon=moon_pos
         ))
-    
     predictions = []
     
-    # Ask each generic question
-    for i, question in enumerate(subject["test_questions"], 1):
+    # Ask generic questions (limit if requested)
+    test_questions = subject["test_questions"]
+    
+    # If target_question_idx is provided, we only want THAT one
+    if target_question_idx is not None:
+        if target_question_idx < len(test_questions):
+            test_questions = [test_questions[target_question_idx]]
+        else:
+            test_questions = []
+    elif num_questions:
+        test_questions = test_questions[:num_questions]
+        
+    for i, question in enumerate(test_questions, 1):
         print(f"   Question {i}/{len(subject['test_questions'])}: {question[:50]}...")
         
         try:
@@ -238,7 +254,7 @@ async def run_all_blind_predictions(dataset_file: str, api_key: str,
     return all_results
 
 
-async def quick_blind_test(api_key: str, num_subjects: int = 2, is_kp_mode: bool = True, bot_mode: str = "pro"):
+async def quick_blind_test(api_key: str, num_subjects: int = 2, is_kp_mode: bool = True, bot_mode: str = "pro", num_questions: int = None, target_question_idx: int = None):
     """
     Quick test with just a few subjects to verify system works
     
@@ -273,7 +289,7 @@ async def quick_blind_test(api_key: str, num_subjects: int = 2, is_kp_mode: bool
     
     results = []
     for subject in test_subjects:
-        result = await run_blind_prediction(subject, api_key, is_kp_mode, bot_mode)
+        result = await run_blind_prediction(subject, api_key, is_kp_mode, bot_mode, num_questions=num_questions, target_question_idx=target_question_idx)
         results.append(result)
     
     # Save results

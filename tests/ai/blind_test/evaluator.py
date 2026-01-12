@@ -11,6 +11,11 @@ from pathlib import Path
 from typing import Dict, List, Any, Tuple
 from collections import defaultdict
 import re
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def extract_traits_from_text(text: str) -> List[str]:
@@ -145,6 +150,67 @@ def calculate_event_accuracy(predictions: List[str], major_events: List[str]) ->
         "misses": sorted(list(misses)),
         "total_events": len(truth_years)
     }
+
+
+def get_ai_semantic_score(prediction_text: str, known_facts: List[str]) -> Tuple[float, str]:
+    """
+    Use AI to evaluate how well a prediction matches known facts.
+    Returns (score 0-100, reasoning)
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return 0.0, "API key missing"
+
+    client = OpenAI(api_key=api_key)
+    facts_str = "\n".join([f"- {f}" for f in known_facts])
+    
+    prompt = f"""
+        You are an expert impartial auditor of astrological predictions.
+        
+        GROUND TRUTH FACTS for the subject:
+        {facts_str}
+        
+        AI PREDICTION to evaluate:
+        "{prediction_text}"
+        
+        TASK:
+        Evaluate how accurately the prediction captures the essence of the person's life and traits.
+        Ignore astrological jargon (like "Mars in 7th") and focus on the ACTUAL traits and life patterns described.
+        
+        SCORING CRITERIA:
+        0: Complete mismatch or contradictory.
+        1-33: Vague or low-level match (barnum effect).
+        34-66: Good match - identifies specific correct traits (e.g. leadership for a CEO).
+        67-90: High accuracy - matches specific life events or unique personality quirks.
+        91-100: Exceptional - captures nuances that are highly specific to this individual.
+        
+        OUTPUT FORMAT (JSON ONLY):
+        {{
+            "score": <0-100>,
+            "reasoning": "<1-2 sentence explanation>"
+        }}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5-nano",
+            messages=[
+                {"role": "system", "content": [{"text": "You are a precise evaluation bot. Output JSON only.", "type": "text"}]},
+                {"role": "user", "content": [{"text": prompt, "type": "text"}]}
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        # Access content safely given the 2026 API structure seen in backend/ai.py
+        result_text = response.choices[0].message.content
+        if isinstance(result_text, list):
+            result_text = result_text[0].get('text', '{}')
+            
+        result = json.loads(result_text)
+        return float(result.get("score", 0)), result.get("reasoning", "")
+    except Exception as e:
+        print(f"⚠️ AI Evaluation Error: {e}")
+        return 0.0, f"Error: {str(e)}"
 
 
 def create_html_output(predictions_data: Dict[str, Any], ground_truth: Dict[str, Any], 
@@ -468,10 +534,20 @@ def evaluate_blind_test_results(predictions_file: str, ground_truth_file: str) -
         major_events = item["ground_truth"].get("known_facts", {}).get("major_events", [])
         event_eval = calculate_event_accuracy(item["predictions"], major_events)
         
+        # Semantic Score (Phase 2 Upgrade)
+        all_pred_text = " ".join(item["predictions"])
+        all_known_facts = []
+        for cat, facts in known_facts_dict.items():
+            all_known_facts.extend(facts)
+            
+        semantic_score, reasoning = get_ai_semantic_score(all_pred_text, all_known_facts) if all_known_facts else (0.0, "No facts")
+        
         famous_scores.append({
             "id": subject_id,
             "identity": identity,
             "trait_overlap": trait_overlap,
+            "semantic_score": semantic_score,
+            "semantic_reasoning": reasoning,
             "specificity": specificity,
             "event_accuracy": event_eval,
             "predictions": item["predictions"]
@@ -479,6 +555,8 @@ def evaluate_blind_test_results(predictions_file: str, ground_truth_file: str) -
         
         print(f"\n   {subject_id} → Real Identity: {identity}")
         print(f"      Trait overlap: {trait_overlap:.1f}%")
+        print(f"      Semantic Score: {semantic_score:.1f}/100")
+        print(f"      AI Reasoning: {reasoning}")
         print(f"      Event Accuracy: {event_eval['score']}% ({len(event_eval['hits'])}/{event_eval['total_events']} years)")
         print(f"      Specificity: {specificity:.2f}")
 
