@@ -214,26 +214,16 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
         with gr.Tab("📊 Birth Chart Generator"):
             gr.Markdown("### Enter Birth Details")
             
-            with gr.Row(equal_height=False):
-                with gr.Column(scale=2):
-                    with gr.Group():
-                        name = gr.Textbox(label="Name", placeholder="John Doe")
-                with gr.Column(scale=1):
-                    with gr.Group():
-                        gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
-            
-            with gr.Row(equal_height=False):
-                with gr.Column(scale=1):
-                    with gr.Group():
-                        dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
-                with gr.Column(scale=1):
-                    with gr.Group():
-                        dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
-            
-            with gr.Row(equal_height=False):
-                with gr.Column(scale=1):
-                    with gr.Group():
-                        place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
+            with gr.Group():
+                with gr.Row():
+                    name = gr.Textbox(label="Name", placeholder="John Doe", scale=2)
+                    gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male", scale=1)
+                
+                with gr.Row():
+                    dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
+                    dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
+                
+                place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
             
             generate_btn = gr.Button("🔮 Generate Chart", variant="primary", size="lg")
             
@@ -257,7 +247,7 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
                     dasha_html = gr.HTML(label="Vimshottari Dasha Analysis")
                 
                 with gr.Tab("💠 Divisional Charts (Vargas)"):
-                    with gr.Row():
+                    with gr.Group():
                         varga_select = gr.Dropdown(
                             label="Select Varga Chart",
                             choices=[
@@ -277,12 +267,13 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
         with gr.Tab("🕉️ Vedic AI Chat"):
             # Bot Mode Selector
             gr.Markdown("### 🤖 AI Mode Selection")
-            vedic_bot_mode = gr.Radio(
-                choices=["PRO (Accuracy)", "LITE (Tokens)", "LEGACY (Classic)"],
-                value="PRO (Accuracy)",
-                label="Bot Mode",
-                info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
-            )
+            with gr.Group():
+                vedic_bot_mode = gr.Radio(
+                    choices=["PRO (Accuracy)", "LITE (Tokens)", "LEGACY (Classic)"],
+                    value="PRO (Accuracy)",
+                    label="Bot Mode",
+                    info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
+                )
             
             with gr.Row():
                 # SIDEBAR (Left)
@@ -320,18 +311,20 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
                         v_s_btn2 = gr.Button("", visible=False, size="sm")
                         v_s_btn3 = gr.Button("", visible=False, size="sm")
                     
-                    v_msg = gr.Textbox(label="Ask Vedic Astrology", placeholder="Ask any question about your life...", scale=7)
+                    with gr.Group():
+                        v_msg = gr.Textbox(label="Ask Vedic Astrology", placeholder="Ask any question about your life...", scale=7)
 
         # TAB 3: KP AI Chat
         with gr.Tab("🧭 KP AI Chat"):
             # Bot Mode Selector
             gr.Markdown("### 🤖 AI Mode Selection")
-            kp_bot_mode = gr.Radio(
-                choices=["PRO (Accuracy)", "LITE (Tokens)", "LEGACY (Classic)"],
-                value="PRO (Accuracy)",
-                label="Bot Mode",
-                info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
-            )
+            with gr.Group():
+                kp_bot_mode = gr.Radio(
+                    choices=["PRO (Accuracy)", "LITE (Tokens)", "LEGACY (Classic)"],
+                    value="PRO (Accuracy)",
+                    label="Bot Mode",
+                    info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
+                )
             
             with gr.Row():
                 # SIDEBAR (Left)
@@ -364,7 +357,8 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
                         kp_s_btn2 = gr.Button("", visible=False, size="sm")
                         kp_s_btn3 = gr.Button("", visible=False, size="sm")
                     
-                    kp_msg = gr.Textbox(label="Ask KP Astrology", placeholder="Ask using Krishnamurti Paddhati rules...", scale=7)
+                    with gr.Group():
+                        kp_msg = gr.Textbox(label="Ask KP Astrology", placeholder="Ask using Krishnamurti Paddhati rules...", scale=7)
 
 
     async def handle_chat_input(user_input, history, chart_data, is_kp=False, bot_mode_ui="PRO (Accuracy)"):
