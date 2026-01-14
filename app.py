@@ -217,18 +217,18 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
             with gr.Column():
                 with gr.Row():
                     with gr.Group():
-                        name = gr.Textbox(label="Name", placeholder="John Doe")
+                        name = gr.Textbox(label="Name", placeholder="John Doe", container=False)
                     with gr.Group():
-                        gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
+                        gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male", container=False)
                 
                 with gr.Row():
                     with gr.Group():
-                        dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
+                        dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"), container=False)
                     with gr.Group():
-                        dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
+                        dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"), container=False)
                 
                 with gr.Group():
-                    place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
+                    place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi", container=False)
             
             generate_btn = gr.Button("🔮 Generate Chart", variant="primary", size="lg")
             
