@@ -214,16 +214,21 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
         with gr.Tab("📊 Birth Chart Generator"):
             gr.Markdown("### Enter Birth Details")
             
-            with gr.Group():
+            with gr.Column():
                 with gr.Row():
-                    name = gr.Textbox(label="Name", placeholder="John Doe")
-                    gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
+                    with gr.Group():
+                        name = gr.Textbox(label="Name", placeholder="John Doe")
+                    with gr.Group():
+                        gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
                 
                 with gr.Row():
-                    dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
-                    dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
+                    with gr.Group():
+                        dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
+                    with gr.Group():
+                        dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
                 
-                place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
+                with gr.Group():
+                    place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
             
             generate_btn = gr.Button("🔮 Generate Chart", variant="primary", size="lg")
             
