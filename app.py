@@ -196,7 +196,7 @@ th, td {
 }
 """
 
-with gr.Blocks(title="Vedic Astrology AI") as demo:
+with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
     
     chart_state = gr.State(None)
     
@@ -214,21 +214,26 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
         with gr.Tab("📊 Birth Chart Generator"):
             gr.Markdown("### Enter Birth Details")
             
-            with gr.Column():
-                with gr.Row():
+            with gr.Row(equal_height=False):
+                with gr.Column(scale=2):
                     with gr.Group():
-                        name = gr.Textbox(label="Name", placeholder="John Doe", container=False)
+                        name = gr.Textbox(label="Name", placeholder="John Doe")
+                with gr.Column(scale=1):
                     with gr.Group():
-                        gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male", container=False)
-                
-                with gr.Row():
+                        gender = gr.Radio(["Male", "Female", "Other"], label="Gender", value="Male")
+            
+            with gr.Row(equal_height=False):
+                with gr.Column(scale=1):
                     with gr.Group():
-                        dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"), container=False)
+                        dob_date = gr.Textbox(label="Birth Date", placeholder="YYYY-MM-DD", value=datetime.now().strftime("%Y-%m-%d"))
+                with gr.Column(scale=1):
                     with gr.Group():
-                        dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"), container=False)
-                
-                with gr.Group():
-                    place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi", container=False)
+                        dob_time = gr.Textbox(label="Birth Time", placeholder="HH:MM", value=datetime.now().strftime("%H:%M"))
+            
+            with gr.Row(equal_height=False):
+                with gr.Column(scale=1):
+                    with gr.Group():
+                        place_name = gr.Textbox(label="Birth Place", placeholder="New Delhi, India", value="New Delhi")
             
             generate_btn = gr.Button("🔮 Generate Chart", variant="primary", size="lg")
             
