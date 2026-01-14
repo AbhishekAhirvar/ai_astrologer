@@ -3,7 +3,9 @@ import asyncio
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from datetime import datetime
 from openai import OpenAI
+from backend.schemas import ChartResponse
 from backend.logger import logger
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -34,6 +36,26 @@ def jd_to_date(jd):
     import swisseph as swe
     y, m, d, h = swe.revjul(jd)
     return f"{y}-{m:02d}-{d:02d}"
+
+def _ensure_chart_object(chart_data: Any) -> Any:
+    """
+    Ensures chart_data is a proper object (ChartResponse or similar) with attribute access.
+    If it's a dict, attempts to convert it to ChartResponse.
+    """
+    if isinstance(chart_data, dict):
+        try:
+            # Check if it looks like a chart dict
+            if 'planets' in chart_data and 'metadata' in chart_data:
+                 return ChartResponse(**chart_data)
+            # Legacy or unexpected dict structure handling could be added here if needed
+            # For now return as is if conversion fails, but log warning
+            logger.warning("Received dict chart_data that doesn't fully match ChartResponse schema. Proceeding with dict.")
+            return chart_data
+        except Exception as e:
+            logger.error(f"Failed to convert dict to ChartResponse: {e}")
+            return chart_data
+            
+    return chart_data
 
 def _extract_user_name(chart_data: Any) -> str:
     """Safely extract user name from chart data object or dict."""
@@ -185,13 +207,14 @@ RULES:
 2. DESCRIBE TRAITS: Focus on describing the user's personality traits, natural tendencies, and life patterns according to astrology.
 3. MINIMAL JARGON: You may mention planet names (e.g., Saturn, Jupiter) if helpful, but limit to at most 2 mentions. Do NOT mention zodiac signs or house numbers unless explicitly asked.
 4. SACRED TONE: Speak as a helpful and compassionate Sage. Use clear, warm language that feels both wise and practical.
-5. TIMING: For past events, calculate CALENDAR YEARS from birth data (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
+5. TIMING: For past events, calculate CALENDAR YEARS from birth data provided in 'meta' (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
 6. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
 7. LENGTH: 100 words or less.
 8. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+9. DATA AVAILABILITY: You HAVE the user's Date of Birth (dob) in the 'meta' section. DO NOT ask for it.
 
 PAYLOAD LEGEND:
-- "meta": User identity and system type.
+- "meta": User identity (contains 'dob' for age calculation) and system type.
 - "dasha": Current time cycle (lord, sub-lords, balance).
 - "planets": Detailed data for Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn.
 - "verdict": Pre-computed strength/quality (Exalted, Favorable, etc.).
@@ -215,8 +238,10 @@ RULES:
 5. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
 6. LENGTH: 100 words or less.
 7. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+8. DO NOT ask for DOB. Use 'meta' section.
 
 PAYLOAD LEGEND:
+- "meta": Contains Name, DOB, and Current Date. Use DOB for calculations.
 - "D:A>B>C/XyYm": Dasha hierarchy (Maha>Antar>Pratyantar) / years and months remaining.
 - "Pl:SignDeg°retroHHouse": Planet position (e.g., "Ma:Sag10°RH7" is Mars in Sag at 10°, Retrograde, 7th House).
 - "SB:Pl:Score": Shadbala (strength) score.
@@ -235,12 +260,14 @@ RULES:
 2. DESCRIBE TRAITS: Focus on describing the user's personality traits and life patterns with precision.
 3. MINIMAL JARGON: You may mention planet names if helpful (max 2 mentions). Do NOT mention zodiac signs or house numbers unless asked.
 4. SACRED TONE: Speak as a helpful and compassionate Sage. Use clear, warm language that feels both wise and practical.
-5. TIMING: For past events, calculate CALENDAR YEARS from birth data (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
+5. TIMING: For past events, calculate CALENDAR YEARS from birth data in 'meta' (e.g., 1976, 1985). For future, use calendar years or 'X months/years from now'.
 6. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
 7. LENGTH: 100 words or less.
 8. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+9. DATA AVAILABILITY: You HAVE the user's Date of Birth (dob) in the 'meta' section. DO NOT ask for it.
 
 PAYLOAD LEGEND:
+- "meta": User identity (contains 'dob') and system info.
 - "pl": Planet data including sign, star, sub, and strength (str).
 - "h": House cusps data including sign, sub, and verdict.
 - "sig": Planetary significators for events.
@@ -264,8 +291,10 @@ RULES:
 5. BLIND ANALYSIS: Base ALL predictions ONLY on the chart data provided. Do NOT use prior knowledge about any real person.
 6. LENGTH: 100 words or less.
 7. Crucial: End with a curiosity-sparking, thoughtful follow-up question.
+8. DO NOT ask for DOB. Use 'meta' section.
 
 PAYLOAD LEGEND:
+- "meta": Contains Name, DOB, and Current Date.
 - "pl": Planet data including sign, star, sub, and significators.
 - "h": House data (sign, sub).
 - "dasha": Current time periods and balance.
@@ -289,9 +318,9 @@ def _build_optimized_json_context(chart_data: Any) -> str:
     # Meta information
     if hasattr(chart_data, 'metadata'):
         payload["meta"] = {
-            "sys": "KP" if chart_data.kp_data else "Vedic",
-            "name": getattr(chart_data.metadata, 'name', 'User'),
-            "dob": getattr(chart_data.metadata, 'datetime', '').split(' ')[0], # Extract YYYY-MM-DD
+            "sys": "KP" if hasattr(chart_data, 'kp_data') and chart_data.kp_data else "Vedic",
+            "name": _extract_user_name(chart_data),
+            "dob": _extract_dob(chart_data), # Extract YYYY-MM-DD
             "current_date": datetime.now().strftime('%Y-%m-%d')  # FIX: Temporal awareness
         }
     
@@ -340,8 +369,33 @@ def _extract_user_name(chart_data: Any) -> str:
     if hasattr(chart_data, 'metadata'):
         return getattr(chart_data.metadata, 'name', 'User')
     elif isinstance(chart_data, dict):
-        return chart_data.get('_metadata', {}).get('name', 'User')
+        # Try both 'metadata' (Pydantic dump) and '_metadata' (Legacy)
+        meta = chart_data.get('metadata') or chart_data.get('_metadata', {})
+        if isinstance(meta, dict):
+            return meta.get('name', 'User')
+        # Direct key access fallback
+        return chart_data.get('name', 'User')
     return 'User'
+
+def _extract_dob(chart_data: Any) -> str:
+    """Centralized helper to extract DOB from chart data."""
+    dob = "Unknown"
+    
+    # helper to clean date
+    def clean_date(d):
+        return str(d).split(' ')[0] if d else "Unknown"
+
+    if hasattr(chart_data, 'metadata'):
+        dob = getattr(chart_data.metadata, 'datetime', 'Unknown')
+    elif isinstance(chart_data, dict):
+        meta = chart_data.get('metadata') or chart_data.get('_metadata', {})
+        if isinstance(meta, dict):
+            dob = meta.get('datetime', 'Unknown')
+        else:
+             # direct access fallback
+            dob = chart_data.get('dob', 'Unknown')
+            
+    return clean_date(dob)
 
 def _build_user_prompt(user_name: str, planets_str: str, full_context_str: str, user_query: str, is_first_message: bool) -> str:
     """Standardized prompt builder to fix prompt drift."""
@@ -517,7 +571,7 @@ def _build_kp_pro_payload(chart_data: Any, user_query: str = "") -> str:
     meta = {
         "sys": "KP", 
         "name": _extract_user_name(chart_data),
-        "dob": getattr(chart_data.metadata, 'datetime', '').split(' ')[0] if hasattr(chart_data, 'metadata') else "Unknown",
+        "dob": _extract_dob(chart_data),
         "current_date": datetime.now().strftime('%Y-%m-%d')  # FIX: Temporal awareness
     }
     dasha_info = {
@@ -581,7 +635,14 @@ def _build_parashara_lite_payload(chart_data: Any) -> str:
         shadbala_parts = [f"{name[:2]}:{int(score)}" for name, score in top_planets]
         shadbala_str = f" SB:{','.join(shadbala_parts)}"
     
-    return f"{dasha_str} {' '.join(planets_compact)}{shadbala_str}"
+    # FIX: Add Metadata for Temporal Awareness
+    name = _extract_user_name(chart_data)
+    dob = _extract_dob(chart_data)
+    
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    meta_str = f"Name:{name} DOB:{dob} Now:{current_date}"
+    
+    return f"{meta_str} {dasha_str} {' '.join(planets_compact)}{shadbala_str}"
 
 
 def _build_parashara_pro_payload(chart_data: Any, user_query: str = "") -> str:
@@ -592,7 +653,7 @@ def _build_parashara_pro_payload(chart_data: Any, user_query: str = "") -> str:
     # Meta
     meta = {
         "name": _extract_user_name(chart_data),
-        "dob": getattr(chart_data.metadata, 'datetime', '').split(' ')[0] if hasattr(chart_data, 'metadata') else "Unknown",
+        "dob": _extract_dob(chart_data),
         "current_date": datetime.now().strftime('%Y-%m-%d')  # FIX: Temporal awareness
     }
     
@@ -697,6 +758,9 @@ async def get_astrology_prediction_stream(chart_data, user_query, api_key, histo
 
     sys_instr = system_instruction or OMKAR_SYSTEM_INSTRUCTION
     
+    # Ensure chart_data is an object to prevent AttributeErrors
+    chart_data = _ensure_chart_object(chart_data)
+    
     # Extract name early for dynamic prompting
     user_name = _extract_user_name(chart_data)
 
@@ -793,7 +857,13 @@ async def get_astrology_prediction_stream(chart_data, user_query, api_key, histo
                 sb_list = [f"{k}: {v:.1f}" for k, v in sb.items()]
                 shadbala_str = f"\n\nSHADBALA: {', '.join(sb_list)}"
 
-            full_context_str = f"{dasha_str}{shadbala_str}"
+            # Add Metadata (DOB)
+            meta_str = ""
+            dob_val = _extract_dob(chart_data)
+            if dob_val != "Unknown":
+                meta_str = f"\n\nMETADATA: DOB: {dob_val}"
+            
+            full_context_str = f"{meta_str}{dasha_str}{shadbala_str}"
             
             # Dynamic system prompt with user name for Legacy Mode
             formatted_instr = sys_instr.format(user_name=user_name) if "{user_name}" in sys_instr else sys_instr
@@ -1047,7 +1117,20 @@ async def get_astrology_prediction(chart_data, user_query, api_key, history=None
                                 logger.info(f"🧠 AI INTERNAL DIALOGUE (THINKING SUMMARY):\n{item.summary}")
                             break
 
-            return response.output_text.strip()
+            content = response.output_text.strip()
+            
+            if return_debug_info:
+                return {
+                    "prediction": content,
+                    "payload": debug_payload if 'debug_payload' in locals() else str(messages),
+                    "usage": {
+                        "input_tokens": input_tokens if 'input_tokens' in locals() else 0,
+                        "output_tokens": output_tokens if 'output_tokens' in locals() else 0,
+                        "total_tokens": total_tokens if 'total_tokens' in locals() else 0
+                    }
+                }
+            
+            return content
         return "⚠️ Error: Empty response from AI"
             
     except Exception as e:
@@ -1064,6 +1147,9 @@ async def get_followup_questions(api_key: str, chart_data: Any = None, is_kp_mod
         return ["What does this mean?", "Any remedies?", "Future outlook?"]
         
     try:
+        # standardizing chart data
+        chart_data = _ensure_chart_object(chart_data)
+
         # Standardized user name extraction
         user_name = _extract_user_name(chart_data)
 

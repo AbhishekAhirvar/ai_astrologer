@@ -41,16 +41,16 @@ class NorthIndianChart:
         'saturn': 'Saturn',
         'rahu': 'Rahu',
         'ketu': 'Ketu',
-        'ascendant': 'Asc'
+        'ascendant': 'As'
     }
 
     # Valid planets for Chara Karaka calculation (7 planets only)
     CHARA_KARAKA_PLANETS = {'sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn'}
     
-    # All planets for display (including Rahu/Ketu)
-    DISPLAY_PLANETS = {'sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn', 'rahu', 'ketu'}
+    # All planets for display (including Rahu/Ketu/Ascendant)
+    DISPLAY_PLANETS = {'sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn', 'rahu', 'ketu', 'ascendant'}
     
-    EXCLUDED_KEYS = {'ascendant', '_metadata'}
+    EXCLUDED_KEYS = {'_metadata'}
     
     def __init__(self, chart_data: Dict[str, Any], chart_type: str = 'D1', name: str = '') -> None:
         """

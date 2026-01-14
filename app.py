@@ -57,8 +57,18 @@ async def generate_report(name, gender, dob_date, dob_time, place_name):
     
     cache_key = get_report_cache_key(name, dob_date, dob_time, place_name)
     if cache_key in REPORT_CACHE:
-        logger.info(f"Serving report from cache for {name}")
-        return REPORT_CACHE[cache_key]
+        # Validate cache: check if file paths still exist (important for HF Spaces)
+        cached_result = REPORT_CACHE[cache_key]
+        # cached_result = (summary_text, table_path, nak_table_path, d1_img, chart, d9_img, shadbala_img, dasha_html_content)
+        files_to_check = [cached_result[1], cached_result[2], cached_result[3], cached_result[5], cached_result[6]]
+        files_exist = all(f and os.path.exists(f) for f in files_to_check if f)
+        
+        if files_exist:
+            logger.info(f"Serving report from cache for {name}")
+            return cached_result
+        else:
+            logger.warning(f"Cache invalidated for {name} - files no longer exist")
+            del REPORT_CACHE[cache_key]  # Remove stale cache
 
     logger.info(f"Generating report for: {name} ({dob_date} {dob_time}) at {place_name}")
     cleanup_old_charts(CHARTS_DIR)
@@ -480,4 +490,8 @@ with gr.Blocks(title="Vedic Astrology AI") as demo:
 
 
 if __name__ == "__main__":
+    # Clear cache and old files on startup (important for HF Spaces)
+    REPORT_CACHE.clear()
+    cleanup_old_charts(CHARTS_DIR)
+    logger.info("App starting - cache cleared")
     demo.launch(share=True, server_name="0.0.0.0", server_port=7860, css=custom_css)

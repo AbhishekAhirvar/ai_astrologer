@@ -351,22 +351,22 @@ async def run_comprehensive_test(api_key: str):
     print("🚀 COMPREHENSIVE BLIND TEST (Michael Peterson - AA Rated)")
     print("="*80)
     
-    # Michael Peterson (The Staircase) - AA Rated
+    # Custom Test for Abhishek
     subject = {
-        "id": "Subject-MP1943", 
-        "test_type": "famous_criminal_blind",
+        "id": "Subject-Abhishek-1992", 
+        "test_type": "user_blind_test",
         "birth_data": {
-            "year": 1943, "month": 10, "day": 23,
-            "hour": 4, "minute": 22,
-            "location_display": "Tullahoma, TN, USA",
-            "lat": 35.3620, "lon": -86.2064,
-            "timezone": "America/Chicago"
+            "year": 1992, "month": 1, "day": 2,
+            "hour": 6, "minute": 40,
+            "location_display": "Delhi, India",
+            "lat": 28.6139, "lon": 77.2090,
+            "timezone": "Asia/Kolkata"
         },
         "test_questions": [
-            # "What major challenges will I face in life?",
-            # "Will I achieve recognition in my field?",
-            "Looking at my entire life journey, identify major years of crisis or breakthrough.",
-            # "What is my nature regarding partnerships and conflict?"
+            "What is my life purpose?",
+            "What are my key personality traits?",
+            "Which career is most suitable for me?",
+            "What does my upcoming life look like?"
         ]
     }
     
