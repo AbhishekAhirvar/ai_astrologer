@@ -274,6 +274,12 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
                     label="Bot Mode",
                     info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
                 )
+                vedic_model_select = gr.Dropdown(
+                    choices=["gpt-5-nano", "gpt-5-mini"],
+                    value="gpt-5-nano",
+                    label="Model",
+                    info="Select model"
+                )
             
             with gr.Row():
                 # SIDEBAR (Left)
@@ -325,6 +331,12 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
                     label="Bot Mode",
                     info="PRO: Maximum accuracy | LITE: Token-optimized | LEGACY: Classic behavior"
                 )
+                kp_model_select = gr.Dropdown(
+                    choices=["gpt-5-nano", "gpt-5-mini"],
+                    value="gpt-5-nano",
+                    label="Model",
+                    info="Select model"
+                )
             
             with gr.Row():
                 # SIDEBAR (Left)
@@ -361,7 +373,7 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
                         kp_msg = gr.Textbox(label="Ask KP Astrology", placeholder="Ask using Krishnamurti Paddhati rules...", scale=7)
 
 
-    async def handle_chat_input(user_input, history, chart_data, is_kp=False, bot_mode_ui="PRO (Accuracy)"):
+    async def handle_chat_input(user_input, history, chart_data, is_kp=False, bot_mode_ui="PRO (Accuracy)", model="gpt-5-nano"):
         """Unified chat entry point with streaming and memory"""
         if not chart_data:
             history.append({"role": "user", "content": user_input})
@@ -400,13 +412,13 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
                 system_instr = OMKAR_SYSTEM_INSTRUCTION_V2 if is_kp else OMKAR_SYSTEM_INSTRUCTION
                 stream_gen = get_astrology_prediction_stream(
                     chart_data, user_input, api_key=api_key, history=history[:-2], 
-                    is_kp_mode=is_kp, system_instruction=system_instr
+                    is_kp_mode=is_kp, system_instruction=system_instr, model=model
                 )
             else:
                 # Use new 4-bot system
                 stream_gen = get_astrology_prediction_stream(
                     chart_data, user_input, api_key=api_key, history=history[:-2], 
-                    is_kp_mode=is_kp, bot_mode=bot_mode
+                    is_kp_mode=is_kp, bot_mode=bot_mode, model=model
                 )
             sug_task = asyncio.create_task(get_followup_questions(api_key=api_key, chart_data=chart_data, is_kp_mode=is_kp, history=history))
 
@@ -431,49 +443,49 @@ with gr.Blocks(title="Vedic Astrology AI", fill_height=False) as demo:
         yield history, "", gr.Button(value=suggestions[0], visible=True), gr.Button(value=suggestions[1], visible=True), gr.Button(value=suggestions[2], visible=True)
 
     # Wrappers
-    async def vedic_chat_handler(u, h, c, bm):
-        async for res in handle_chat_input(u, h, c, False, bm):
+    async def vedic_chat_handler(u, h, c, bm, m):
+        async for res in handle_chat_input(u, h, c, False, bm, m):
             yield res
 
-    async def kp_chat_handler(u, h, c, bm):
-        async for res in handle_chat_input(u, h, c, True, bm):
+    async def kp_chat_handler(u, h, c, bm, m):
+        async for res in handle_chat_input(u, h, c, True, bm, m):
             yield res
 
     # VEDIC EVENTS
     v_msg.submit(
         vedic_chat_handler,
-        [v_msg, v_chatbot, chart_state, vedic_bot_mode], 
+        [v_msg, v_chatbot, chart_state, vedic_bot_mode, vedic_model_select], 
         [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
     )
     for qb in vedic_q_btns:
         qb.click(
             vedic_chat_handler,
-            [qb, v_chatbot, chart_state, vedic_bot_mode],
+            [qb, v_chatbot, chart_state, vedic_bot_mode, vedic_model_select],
             [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
         )
     for sb in [v_s_btn1, v_s_btn2, v_s_btn3]:
         sb.click(
             vedic_chat_handler,
-            [sb, v_chatbot, chart_state, vedic_bot_mode],
+            [sb, v_chatbot, chart_state, vedic_bot_mode, vedic_model_select],
             [v_chatbot, v_msg, v_s_btn1, v_s_btn2, v_s_btn3]
         )
 
     # KP EVENTS
     kp_msg.submit(
         kp_chat_handler,
-        [kp_msg, kp_chatbot, chart_state, kp_bot_mode], 
+        [kp_msg, kp_chatbot, chart_state, kp_bot_mode, kp_model_select], 
         [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
     )
     for qb in kp_q_btns:
         qb.click(
             kp_chat_handler,
-            [qb, kp_chatbot, chart_state, kp_bot_mode],
+            [qb, kp_chatbot, chart_state, kp_bot_mode, kp_model_select],
             [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
         )
     for sb in [kp_s_btn1, kp_s_btn2, kp_s_btn3]:
         sb.click(
             kp_chat_handler,
-            [sb, kp_chatbot, chart_state, kp_bot_mode],
+            [sb, kp_chatbot, chart_state, kp_bot_mode, kp_model_select],
             [kp_chatbot, kp_msg, kp_s_btn1, kp_s_btn2, kp_s_btn3]
         )
     
