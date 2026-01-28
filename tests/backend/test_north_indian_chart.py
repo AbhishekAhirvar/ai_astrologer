@@ -63,7 +63,7 @@ class TestNorthIndianChart(unittest.TestCase):
         self.assertEqual(actual_order, expected_order)
 
     def test_display_planets(self):
-         """Test that display planets include Rahu/Ketu."""
+         """Test that display planets include Rahu/Ketu and Ascendant."""
          chart = NorthIndianChart(self.chart_data)
          display_planets = chart.get_planets_for_display()
          
@@ -71,9 +71,8 @@ class TestNorthIndianChart(unittest.TestCase):
          self.assertIn('ketu', display_planets)
          self.assertIn('sun', display_planets)
          
-         # Ascendant is handled separately, shouldn't be in display planets list usually?
-         # Based on code: EXCLUDED_KEYS = {'ascendant', '_metadata'}
-         self.assertNotIn('ascendant', display_planets)
+         # Ascendant is now included in display planets (EXCLUDED_KEYS only has '_metadata')
+         self.assertIn('ascendant', display_planets)
 
     def test_render_chart(self):
         """Test that the chart can be rendered without errors."""
