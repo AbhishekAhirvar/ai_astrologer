@@ -1,6 +1,7 @@
 import sys
 import os
 import asyncio
+import pytest
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from backend.ai import get_astrology_prediction_stream
@@ -10,8 +11,7 @@ load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
 if not api_key:
-    print("❌ Error: API Key not found!")
-    sys.exit(1)
+    pytest.skip("API Key not found", allow_module_level=True)
 
 # Dummy chart
 chart_data = {

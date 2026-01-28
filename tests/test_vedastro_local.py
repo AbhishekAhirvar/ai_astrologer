@@ -1,6 +1,11 @@
 
-import vedastro
-from vedastro import *
+import pytest
+try:
+    import vedastro
+    from vedastro import *
+except ImportError:
+    pytest.skip("vedastro module not installed", allow_module_level=True)
+
 import datetime
 
 def test_vedastro():

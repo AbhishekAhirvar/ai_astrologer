@@ -2,6 +2,7 @@ import sys
 import os
 import argparse
 import asyncio
+import pytest
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from backend.ai import get_astrology_prediction_stream, get_followup_questions
@@ -12,8 +13,7 @@ load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    print("❌ Error: API Key not found in environment variables!")
-    sys.exit(1)
+    pytest.skip("API Key not found in environment variables", allow_module_level=True)
 
 # Dummy chart data with full structure
 chart_data = {
