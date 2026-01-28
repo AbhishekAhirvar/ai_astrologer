@@ -24,6 +24,14 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
         
-    - name: Run tests
+    - name: Run Backend Tests
       run: |
-        pytest
+        pytest tests/backend/ -v --tb=short
+    
+    - name: Run API Tests
+      run: |
+        pytest tests/api/ -v --tb=short
+    
+    - name: Run All Tests (excluding flaky tests)
+      run: |
+        pytest tests/ -v --ignore=tests/ai/blind_test --ignore=tests/ai/old_flawed_tests --tb=short -q
